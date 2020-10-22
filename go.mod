@@ -9,10 +9,11 @@ require (
 	github.com/golang/protobuf v1.4.2
 	github.com/onsi/ginkgo v1.12.1
 	github.com/onsi/gomega v1.10.1
-	gitlab.com/acnodal/egw-resource-model v0.1.0-pre6
+	gitlab.com/acnodal/egw-resource-model v0.1.1-pre8
 	go.uber.org/multierr v1.5.0 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
 	google.golang.org/grpc v1.27.0
+	k8s.io/api v0.18.6
 	k8s.io/apimachinery v0.18.6
 	k8s.io/client-go v0.18.6
 	sigs.k8s.io/controller-runtime v0.6.2

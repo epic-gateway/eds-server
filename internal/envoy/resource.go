@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
+	v1 "k8s.io/api/core/v1"
 
 	cluster "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -74,10 +75,10 @@ func EndpointToLbEndpoint(ep egwv1.LoadBalancerEndpoint) *endpoint.LbEndpoint {
 				Address: &core.Address{
 					Address: &core.Address_SocketAddress{
 						SocketAddress: &core.SocketAddress{
-							Protocol: core.SocketAddress_TCP,
+							Protocol: protocolToProtocol(ep.Port.Protocol),
 							Address:  ep.Address,
 							PortSpecifier: &core.SocketAddress_PortValue{
-								PortValue: uint32(ep.Port),
+								PortValue: uint32(ep.Port.Port),
 							},
 						},
 					},
@@ -87,7 +88,7 @@ func EndpointToLbEndpoint(ep egwv1.LoadBalancerEndpoint) *endpoint.LbEndpoint {
 	}
 }
 
-func makeHTTPListener(service egwv1.LoadBalancer, listenerName string, route string, upstreamHost string, ports []int) *listener.Listener {
+func makeHTTPListener(service egwv1.LoadBalancer, listenerName string, route string, upstreamHost string) *listener.Listener {
 	manager := &hcm.HttpConnectionManager{
 		CodecType:  hcm.HttpConnectionManager_AUTO,
 		StatPrefix: "http",
@@ -108,10 +109,10 @@ func makeHTTPListener(service egwv1.LoadBalancer, listenerName string, route str
 		Address: &core.Address{
 			Address: &core.Address_SocketAddress{
 				SocketAddress: &core.SocketAddress{
-					Protocol: core.SocketAddress_TCP,
+					Protocol: protocolToProtocol(service.Spec.PublicPorts[0].Protocol),
 					Address:  "0.0.0.0",
 					PortSpecifier: &core.SocketAddress_PortValue{
-						PortValue: uint32(ports[0]),
+						PortValue: uint32(service.Spec.PublicPorts[0].Port),
 					},
 				},
 			},
@@ -165,7 +166,7 @@ func ServiceToSnapshot(service egwv1.LoadBalancer) cachev3.Snapshot {
 		[]types.Resource{}, // routes
 		// FIXME: we currently need this Address because we're doing HTTP
 		// rewriting which we probably don't want to do
-		[]types.Resource{makeHTTPListener(service, listenerName, routeName, service.Spec.PublicAddress, service.Spec.PublicPorts)},
+		[]types.Resource{makeHTTPListener(service, listenerName, routeName, service.Spec.PublicAddress)},
 		[]types.Resource{}, // runtimes
 	)
 }
@@ -181,4 +182,14 @@ func NewSnapshot() cachev3.Snapshot {
 		[]types.Resource{}, // listeners
 		[]types.Resource{}, // runtimes
 	)
+}
+
+// protocolToProtocol translates from k8s core Protocol objects to
+// Envoy code SocketAddress_Protocol objects.
+func protocolToProtocol(protocol v1.Protocol) core.SocketAddress_Protocol {
+	eProto := core.SocketAddress_TCP
+	if protocol == v1.ProtocolUDP {
+		eProto = core.SocketAddress_UDP
+	}
+	return eProto
 }
