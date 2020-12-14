@@ -7,9 +7,9 @@ require (
 	github.com/envoyproxy/go-control-plane v0.9.6
 	github.com/go-logr/logr v0.1.0
 	github.com/golang/protobuf v1.4.2
-	github.com/onsi/ginkgo v1.12.1
+	github.com/onsi/ginkgo v1.14.2
 	github.com/onsi/gomega v1.10.1
-	gitlab.com/acnodal/egw-resource-model v0.1.1-pre8
+	gitlab.com/acnodal/egw-resource-model v0.1.11-pre1
 	go.uber.org/multierr v1.5.0 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
 	google.golang.org/grpc v1.27.0

@@ -16,8 +16,8 @@ var (
 )
 
 // UpdateModel updates Envoy's model with new info about this LB.
-func UpdateModel(nodeID string, service egwv1.LoadBalancer) error {
-	snapshot := ServiceToSnapshot(service)
+func UpdateModel(nodeID string, service egwv1.LoadBalancer, endpoints []egwv1.Endpoint) error {
+	snapshot := ServiceToSnapshot(service, endpoints)
 	return updateSnapshot(nodeID, snapshot)
 }
 

@@ -35,10 +35,10 @@ func init() {
 type callbacks struct {
 }
 
-func (cb callbacks) LoadBalancerChanged(service *egwv1.LoadBalancer) error {
+func (cb callbacks) EndpointChanged(service *egwv1.LoadBalancer, endpoints []egwv1.Endpoint) error {
 	log.Printf("service changed: %v", service)
 	nodeID := service.ObjectMeta.Namespace + "/" + service.ObjectMeta.Name
-	if err := envoy.UpdateModel(nodeID, *service); err != nil {
+	if err := envoy.UpdateModel(nodeID, *service, endpoints); err != nil {
 		log.Fatal(err)
 	}
 	return nil
@@ -85,13 +85,13 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "ServiceGroup")
 		os.Exit(1)
 	}
-	if err = (&controllers.LoadBalancerReconciler{
+	if err = (&controllers.EndpointReconciler{
 		Client:    mgr.GetClient(),
-		Log:       ctrl.Log.WithName("controllers").WithName("LoadBalancer"),
+		Log:       ctrl.Log.WithName("controllers").WithName("Endpoint"),
 		Callbacks: callbacks{},
 		Scheme:    mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "LoadBalancer")
+		setupLog.Error(err, "unable to create controller", "controller", "Endpoint")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
