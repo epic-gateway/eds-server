@@ -3,7 +3,7 @@ PREFIX = xds-operator
 SUFFIX = ${USER}-dev
 SHELL:=/bin/bash
 
-TAG=${REPO}/${PREFIX}/xds-operator:${SUFFIX}
+TAG=${REPO}/${PREFIX}:${SUFFIX}
 DOCKERFILE=build/package/Dockerfile
 
 ifndef GITLAB_TOKEN
