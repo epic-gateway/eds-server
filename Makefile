@@ -1,9 +1,11 @@
-REPO=registry.gitlab.com/acnodal
+REPO ?= registry.gitlab.com/acnodal
 PREFIX = xds-operator
 SUFFIX = ${USER}-dev
 SHELL:=/bin/bash
 
-TAG=${REPO}/${PREFIX}:${SUFFIX}
+# Image URL to use all building/pushing image targets
+IMG ?= ${REPO}/${PREFIX}:${SUFFIX}
+
 DOCKERFILE=build/package/Dockerfile
 
 ifndef GITLAB_TOKEN
@@ -33,10 +35,10 @@ run: ## Run the service using "go run" (KUBECONFIG needs to be set)
 	go run ./main.go --debug
 
 image:	check ## Build the Docker image
-	@docker build --build-arg=GITLAB_TOKEN --file=${DOCKERFILE} --tag=${TAG} .
+	@docker build --build-arg=GITLAB_TOKEN --file=${DOCKERFILE} --tag=${IMG} .
 
 install:	image ## Push the image to the repo
-	docker push ${TAG}
+	docker push ${IMG}
 
 runimage: image ## Run the service using "docker run"
-	docker run --rm --publish=18000:18000 ${TAG}
+	docker run --rm --publish=18000:18000 ${IMG}
