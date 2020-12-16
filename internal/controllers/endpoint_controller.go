@@ -52,6 +52,21 @@ func (r *EndpointReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return done, client.IgnoreNotFound(err)
 	}
 
+	// This endpoint is marked to be deleted. Remove our finalizer
+	// before we do anything else to ensure that we don't block the
+	// endpoint from being deleted.
+	if !ep.ObjectMeta.DeletionTimestamp.IsZero() {
+		if containsString(ep.ObjectMeta.Finalizers, myFinalizerName) {
+			l.Info("removing finalizer to allow delete to proceed")
+
+			// remove our finalizer from the list and update it.
+			ep.ObjectMeta.Finalizers = removeString(ep.ObjectMeta.Finalizers, myFinalizerName)
+			if err := r.Update(context.Background(), ep); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	}
+
 	// get the parent LB
 	lb := &egwv1.LoadBalancer{}
 	if err := r.Get(ctx, types.NamespacedName{Namespace: ep.Namespace, Name: ep.Spec.LoadBalancer}, lb); err != nil {
@@ -77,17 +92,9 @@ func (r *EndpointReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			}
 		}
 	} else {
-		// The object is being deleted
-		if containsString(ep.ObjectMeta.Finalizers, myFinalizerName) {
-			// remove our finalizer from the list and update it.
-			ep.ObjectMeta.Finalizers = removeString(ep.ObjectMeta.Finalizers, myFinalizerName)
-			if err := r.Update(context.Background(), ep); err != nil {
-				return ctrl.Result{}, err
-			}
-		}
-
-		// remove this endpoint from the list of endpoints (which will
-		// cause it to be removed from the Envoy cluster)
+		// The object is being deleted. remove this endpoint from the list
+		// of endpoints (which will cause it to be removed from the Envoy
+		// cluster)
 		for i, endpoint := range eps {
 			if endpoint.Name == ep.Name {
 				eps = append(eps[:i], eps[i+1:]...)
