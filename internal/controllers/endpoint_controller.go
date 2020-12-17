@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -74,8 +75,10 @@ func (r *EndpointReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// list the endpoints that belong to the parent LB
+	labelSelector := labels.SelectorFromSet(map[string]string{egwv1.OwningLoadBalancerLabel: ep.Spec.LoadBalancer})
+	listOps := client.ListOptions{Namespace: ep.ObjectMeta.Namespace, LabelSelector: labelSelector}
 	list := egwv1.EndpointList{}
-	if err := r.List(context.TODO(), &list, client.InNamespace(ep.Namespace)); err != nil {
+	if err := r.List(context.TODO(), &list, &listOps); err != nil {
 		l.Error(err, "Listing endpoints", "name", lb.Name)
 		return result, err
 	}
