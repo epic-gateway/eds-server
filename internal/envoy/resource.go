@@ -15,6 +15,7 @@
 package envoy
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
@@ -160,7 +161,7 @@ func makeRoute(routeName string, clusterName string, upstreamHost string) *route
 func ServiceToSnapshot(service egwv1.LoadBalancer, endpoints []egwv1.Endpoint) cachev3.Snapshot {
 	version++
 	return cachev3.NewSnapshot(
-		string(version),
+		strconv.Itoa(version),
 		[]types.Resource{}, // endpoints
 		[]types.Resource{serviceToCluster(service, endpoints)},
 		[]types.Resource{}, // routes
@@ -175,7 +176,7 @@ func ServiceToSnapshot(service egwv1.LoadBalancer, endpoints []egwv1.Endpoint) c
 func NewSnapshot() cachev3.Snapshot {
 	version++
 	return cachev3.NewSnapshot(
-		string(version),
+		strconv.Itoa(version),
 		[]types.Resource{}, // endpoints
 		[]types.Resource{}, // clusters
 		[]types.Resource{}, // routes
