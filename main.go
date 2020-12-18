@@ -35,10 +35,15 @@ func init() {
 type callbacks struct {
 }
 
-func (cb callbacks) EndpointChanged(service *egwv1.LoadBalancer, endpoints []egwv1.Endpoint) error {
-	log.Printf("service changed: %v", service)
+func (cb callbacks) LoadBalancerDeleted(namespace string, LBName string) {
+	nodeID := namespace + "/" + LBName
+	envoy.ClearModel(nodeID)
+}
+
+func (cb callbacks) EndpointChanged(version int, service *egwv1.LoadBalancer, endpoints []egwv1.Endpoint) error {
+	log.Printf("service changed to version %d: %v %v", version, service, endpoints)
 	nodeID := service.ObjectMeta.Namespace + "/" + service.ObjectMeta.Name
-	if err := envoy.UpdateModel(nodeID, *service, endpoints); err != nil {
+	if err := envoy.UpdateModel(version, nodeID, *service, endpoints); err != nil {
 		log.Fatal(err)
 	}
 	return nil
@@ -83,6 +88,15 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ServiceGroup")
+		os.Exit(1)
+	}
+	if err = (&controllers.LoadBalancerReconciler{
+		Client:    mgr.GetClient(),
+		Log:       ctrl.Log.WithName("controllers").WithName("LoadBalancer"),
+		Callbacks: callbacks{},
+		Scheme:    mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "LoadBalancer")
 		os.Exit(1)
 	}
 	if err = (&controllers.EndpointReconciler{

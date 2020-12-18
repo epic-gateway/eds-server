@@ -483,8 +483,12 @@ github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca/go.mod h1:ce1O1j6Ut
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yujunz/go-getter v1.4.1-lite/go.mod h1:sbmqxXjyLunH1PkF3n7zSlnVeMvmYUuIl9ZVs/7NyCc=
-gitlab.com/acnodal/egw-resource-model v0.1.11-pre3 h1:iwPQzrqAoQGhVTfIxr2o4+IuHCvydk2xmhd2RVL+WEo=
-gitlab.com/acnodal/egw-resource-model v0.1.11-pre3/go.mod h1:BF2t4VSkoIMWLxUF5KRxx4sch9YGsGLB4CxhAAmF94I=
+gitlab.com/acnodal/egw-resource-model v0.1.12-pre0 h1:zSElh1LXtYoqPCDeZtl3X9gIkotYfSTWyOl/gBPAy9s=
+gitlab.com/acnodal/egw-resource-model v0.1.12-pre0/go.mod h1:BF2t4VSkoIMWLxUF5KRxx4sch9YGsGLB4CxhAAmF94I=
+gitlab.com/acnodal/egw-resource-model v0.1.12-pre1 h1:GppzpMsEZdkMIutPwkBUj9sGrNi5uIvDKfd8hsQmfVQ=
+gitlab.com/acnodal/egw-resource-model v0.1.12-pre1/go.mod h1:BF2t4VSkoIMWLxUF5KRxx4sch9YGsGLB4CxhAAmF94I=
+gitlab.com/acnodal/egw-resource-model v0.1.12-pre2 h1:qYt8L2hCKQ2gaY8mqVfKB8MMAGU58uU4qXp6LlAXPjI=
+gitlab.com/acnodal/egw-resource-model v0.1.12-pre2/go.mod h1:BF2t4VSkoIMWLxUF5KRxx4sch9YGsGLB4CxhAAmF94I=
 gitlab.com/acnodal/packet-forwarding-component/src/go v0.0.0-20201020212529-ed4982208c08 h1:ash0kj++W04QTMonOE40qpGVwJSp/x4STnJe8Fr8C0k=
 gitlab.com/acnodal/packet-forwarding-component/src/go v0.0.0-20201020212529-ed4982208c08/go.mod h1:SDPfSIpwi0eaR90u+CSnzctMM/JOjOJFA+QFnljtC7M=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=

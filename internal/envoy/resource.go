@@ -39,10 +39,6 @@ const (
 	listenerName = "listener_0"
 )
 
-var (
-	version int
-)
-
 func serviceToCluster(service egwv1.LoadBalancer, endpoints []egwv1.Endpoint) *cluster.Cluster {
 	// Translate EGW endpoints into Envoy LbEndpoints
 	lbEndpoints := make([]*endpoint.LbEndpoint, len(endpoints))
@@ -158,8 +154,7 @@ func makeRoute(routeName string, clusterName string, upstreamHost string) *route
 
 // ServiceToSnapshot translates one of our egwv1.LoadBalancers into an
 // xDS cachev3.Snapshot.
-func ServiceToSnapshot(service egwv1.LoadBalancer, endpoints []egwv1.Endpoint) cachev3.Snapshot {
-	version++
+func ServiceToSnapshot(version int, service egwv1.LoadBalancer, endpoints []egwv1.Endpoint) cachev3.Snapshot {
 	return cachev3.NewSnapshot(
 		strconv.Itoa(version),
 		[]types.Resource{}, // endpoints
@@ -168,19 +163,6 @@ func ServiceToSnapshot(service egwv1.LoadBalancer, endpoints []egwv1.Endpoint) c
 		// FIXME: we currently need this Address because we're doing HTTP
 		// rewriting which we probably don't want to do
 		[]types.Resource{makeHTTPListener(service, listenerName, routeName, service.Spec.PublicAddress)},
-		[]types.Resource{}, // runtimes
-	)
-}
-
-// NewSnapshot returns an empty snapshot.
-func NewSnapshot() cachev3.Snapshot {
-	version++
-	return cachev3.NewSnapshot(
-		strconv.Itoa(version),
-		[]types.Resource{}, // endpoints
-		[]types.Resource{}, // clusters
-		[]types.Resource{}, // routes
-		[]types.Resource{}, // listeners
 		[]types.Resource{}, // runtimes
 	)
 }

@@ -16,8 +16,8 @@ var (
 )
 
 // UpdateModel updates Envoy's model with new info about this LB.
-func UpdateModel(nodeID string, service egwv1.LoadBalancer, endpoints []egwv1.Endpoint) error {
-	snapshot := ServiceToSnapshot(service, endpoints)
+func UpdateModel(version int, nodeID string, service egwv1.LoadBalancer, endpoints []egwv1.Endpoint) error {
+	snapshot := ServiceToSnapshot(version, service, endpoints)
 	return updateSnapshot(nodeID, snapshot)
 }
 
@@ -35,6 +35,11 @@ func updateSnapshot(nodeID string, snapshot cachev3.Snapshot) error {
 	}
 
 	return nil
+}
+
+// ClearModel removes a model from the cache.
+func ClearModel(nodeID string) {
+	cache.ClearSnapshot(nodeID)
 }
 
 // LaunchControlPlane launches an xDS control plane in the
