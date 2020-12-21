@@ -77,7 +77,7 @@ func (r *EndpointReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// list the endpoints that belong to the parent LB
-	eps, err := listLBEndpoints(r, lb)
+	eps, err := listActiveLBEndpoints(r, lb)
 	if err != nil {
 		return done, err
 	}

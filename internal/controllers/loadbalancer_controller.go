@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/labels"
@@ -74,7 +73,7 @@ func (r *LoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		return done, nil
 	}
 
-	endpoints, err := listLBEndpoints(r, lb)
+	endpoints, err := listActiveLBEndpoints(r, lb)
 	if err != nil {
 		return done, err
 	}
@@ -94,22 +93,23 @@ func (r *LoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	return done, nil
 }
 
-// listLBEndpoints lists the endpoints that belong to lb.
-func listLBEndpoints(cl client.Client, lb *egwv1.LoadBalancer) ([]egwv1.Endpoint, error) {
+// listActiveLBEndpoints lists the endpoints that belong to lb that
+// are active, i.e., not in the process of being deleted.
+func listActiveLBEndpoints(cl client.Client, lb *egwv1.LoadBalancer) ([]egwv1.Endpoint, error) {
 	labelSelector := labels.SelectorFromSet(map[string]string{egwv1.OwningLoadBalancerLabel: lb.Name})
 	listOps := client.ListOptions{Namespace: lb.Namespace, LabelSelector: labelSelector}
 	list := egwv1.EndpointList{}
 	err := cl.List(context.TODO(), &list, &listOps)
 
-	// remove any "in deletion" endpoints from the list
-	for i, endpoint := range list.Items {
-		if !endpoint.ObjectMeta.DeletionTimestamp.IsZero() {
-			fmt.Printf("deleting EP %s", endpoint.Name)
-			list.Items = append(list.Items[:i], list.Items[i+1:]...)
+	activeEPs := []egwv1.Endpoint{}
+	// build a new list with no "in deletion" endpoints
+	for _, endpoint := range list.Items {
+		if endpoint.ObjectMeta.DeletionTimestamp.IsZero() {
+			activeEPs = append(activeEPs, endpoint)
 		}
 	}
 
-	return list.Items, err
+	return activeEPs, err
 }
 
 // SetupWithManager sets up this reconciler to be managed.
