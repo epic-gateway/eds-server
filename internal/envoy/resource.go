@@ -164,6 +164,7 @@ func ServiceToSnapshot(version int, service egwv1.LoadBalancer, endpoints []egwv
 		// rewriting which we probably don't want to do
 		[]types.Resource{makeHTTPListener(service, listenerName, routeName, service.Spec.PublicAddress)},
 		[]types.Resource{}, // runtimes
+		[]types.Resource{}, // secrets
 	)
 }
 
