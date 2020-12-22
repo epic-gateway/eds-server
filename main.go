@@ -41,7 +41,7 @@ func (cb callbacks) LoadBalancerDeleted(namespace string, LBName string) {
 }
 
 func (cb callbacks) EndpointChanged(version int, service *egwv1.LoadBalancer, endpoints []egwv1.Endpoint) error {
-	log.Printf("service changed to version %d: %v %v", version, service, endpoints)
+	log.Printf("service changed to version %d:\n%#v\n%#v", version, service, endpoints)
 	nodeID := service.ObjectMeta.Namespace + "/" + service.ObjectMeta.Name
 	if err := envoy.UpdateModel(version, nodeID, *service, endpoints); err != nil {
 		log.Fatal(err)

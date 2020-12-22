@@ -26,7 +26,7 @@ func updateSnapshot(nodeID string, snapshot cachev3.Snapshot) error {
 		l.Errorf("snapshot inconsistency: %+v\n%+v", snapshot, err)
 		return err
 	}
-	l.Debugf("will serve snapshot %+v", snapshot)
+	l.Debugf("will serve snapshot %#v", snapshot)
 
 	// add the snapshot to the cache
 	if err := cache.SetSnapshot(nodeID, snapshot); err != nil {
