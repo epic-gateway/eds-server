@@ -15,6 +15,7 @@
 package envoy
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
@@ -35,8 +36,7 @@ import (
 )
 
 const (
-	routeName    = "local_route"
-	listenerName = "listener_0"
+	routeName = "local_route"
 )
 
 func serviceToCluster(service egwv1.LoadBalancer, endpoints []egwv1.Endpoint) *cluster.Cluster {
@@ -85,12 +85,24 @@ func EndpointToLbEndpoint(ep egwv1.Endpoint) *endpoint.LbEndpoint {
 	}
 }
 
-func makeHTTPListener(service egwv1.LoadBalancer, listenerName string, route string, upstreamHost string) *listener.Listener {
+// makeHTTPListeners translates an egwv1.LoadBalancer's ports into
+// Envoy Listener objects.
+func makeHTTPListeners(service egwv1.LoadBalancer, route string, upstreamHost string) []types.Resource {
+	resources := make([]types.Resource, len(service.Spec.PublicPorts))
+
+	for i, port := range service.Spec.PublicPorts {
+		resources[i] = makeHTTPListener(service.Name, port, route, upstreamHost)
+	}
+
+	return resources
+}
+
+func makeHTTPListener(serviceName string, port v1.ServicePort, route string, upstreamHost string) *listener.Listener {
 	manager := &hcm.HttpConnectionManager{
 		CodecType:  hcm.HttpConnectionManager_AUTO,
 		StatPrefix: "http",
 		RouteSpecifier: &hcm.HttpConnectionManager_RouteConfig{
-			RouteConfig: makeRoute(routeName, service.Name, upstreamHost),
+			RouteConfig: makeRoute(routeName, serviceName, upstreamHost),
 		},
 		HttpFilters: []*hcm.HttpFilter{{
 			Name: wellknown.Router,
@@ -101,15 +113,21 @@ func makeHTTPListener(service egwv1.LoadBalancer, listenerName string, route str
 		panic(err)
 	}
 
+	// Fill in a default name if none was provided
+	listenerName := port.Name
+	if listenerName == "" {
+		listenerName = fmt.Sprintf("%s-%d", port.Protocol, port.Port)
+	}
+
 	return &listener.Listener{
 		Name: listenerName,
 		Address: &core.Address{
 			Address: &core.Address_SocketAddress{
 				SocketAddress: &core.SocketAddress{
-					Protocol: protocolToProtocol(service.Spec.PublicPorts[0].Protocol),
+					Protocol: protocolToProtocol(port.Protocol),
 					Address:  "0.0.0.0",
 					PortSpecifier: &core.SocketAddress_PortValue{
-						PortValue: uint32(service.Spec.PublicPorts[0].Port),
+						PortValue: uint32(port.Port),
 					},
 				},
 			},
@@ -162,7 +180,7 @@ func ServiceToSnapshot(version int, service egwv1.LoadBalancer, endpoints []egwv
 		[]types.Resource{}, // routes
 		// FIXME: we currently need this Address because we're doing HTTP
 		// rewriting which we probably don't want to do
-		[]types.Resource{makeHTTPListener(service, listenerName, routeName, service.Spec.PublicAddress)},
+		makeHTTPListeners(service, routeName, service.Spec.PublicAddress),
 		[]types.Resource{}, // runtimes
 		[]types.Resource{}, // secrets
 	)
