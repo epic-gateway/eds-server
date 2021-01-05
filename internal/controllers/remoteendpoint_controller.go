@@ -15,18 +15,18 @@ import (
 
 const (
 	// name of our custom finalizer
-	epFinalizerName = "endpoint-finalizer.xds-controller.acnodal.io"
+	epFinalizerName = "remoteendpoint-finalizer.xds-controller.acnodal.io"
 )
 
 // LoadBalancerCallbacks are how this controller notifies the control
 // plane of object changes.
 type LoadBalancerCallbacks interface {
-	EndpointChanged(int, *egwv1.LoadBalancer, []egwv1.Endpoint) error
+	EndpointChanged(int, *egwv1.LoadBalancer, []egwv1.RemoteEndpoint) error
 	LoadBalancerDeleted(string, string)
 }
 
-// EndpointReconciler reconciles a Endpoint object
-type EndpointReconciler struct {
+// RemoteEndpointReconciler reconciles a Endpoint object
+type RemoteEndpointReconciler struct {
 	client.Client
 	Log       logr.Logger
 	Callbacks LoadBalancerCallbacks
@@ -40,13 +40,13 @@ type EndpointReconciler struct {
 
 // Reconcile is the core of this controller. It gets requests from the
 // controller-runtime and figures out what to do with them.
-func (r *EndpointReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *RemoteEndpointReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	done := ctrl.Result{Requeue: false}
 	ctx := context.TODO()
 	l := r.Log.WithValues("endpoint", req.NamespacedName)
 
 	// get the object that caused the event
-	ep := &egwv1.Endpoint{}
+	ep := &egwv1.RemoteEndpoint{}
 	if err := r.Get(ctx, req.NamespacedName, ep); err != nil {
 		l.Info("can't get resource, probably deleted")
 		// ignore not-found errors, since they can't be fixed by an
@@ -72,7 +72,7 @@ func (r *EndpointReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// get the parent LB
 	lb := &egwv1.LoadBalancer{}
-	if err := r.Get(ctx, types.NamespacedName{Namespace: ep.Namespace, Name: ep.Spec.LoadBalancer}, lb); err != nil {
+	if err := r.Get(ctx, types.NamespacedName{Namespace: ep.Namespace, Name: ep.Labels[egwv1.OwningLoadBalancerLabel]}, lb); err != nil {
 		return done, err
 	}
 
@@ -112,9 +112,9 @@ func (r *EndpointReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 }
 
 // SetupWithManager sets up this reconciler to be managed.
-func (r *EndpointReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *RemoteEndpointReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&egwv1.Endpoint{}).
+		For(&egwv1.RemoteEndpoint{}).
 		Complete(r)
 }
 
@@ -142,7 +142,7 @@ func nextSnapshotVersion(ctx context.Context, cl client.Client, lb *egwv1.LoadBa
 
 	// get the SG
 	sg := egwv1.ServiceGroup{}
-	err = cl.Get(ctx, types.NamespacedName{Namespace: lb.Namespace, Name: lb.Spec.ServiceGroup}, &sg)
+	err = cl.Get(ctx, types.NamespacedName{Namespace: lb.Namespace, Name: lb.Labels[egwv1.OwningServiceGroupLabel]}, &sg)
 	if err != nil {
 		return -1, err
 	}

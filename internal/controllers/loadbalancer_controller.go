@@ -95,13 +95,13 @@ func (r *LoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 
 // listActiveLBEndpoints lists the endpoints that belong to lb that
 // are active, i.e., not in the process of being deleted.
-func listActiveLBEndpoints(cl client.Client, lb *egwv1.LoadBalancer) ([]egwv1.Endpoint, error) {
+func listActiveLBEndpoints(cl client.Client, lb *egwv1.LoadBalancer) ([]egwv1.RemoteEndpoint, error) {
 	labelSelector := labels.SelectorFromSet(map[string]string{egwv1.OwningLoadBalancerLabel: lb.Name})
 	listOps := client.ListOptions{Namespace: lb.Namespace, LabelSelector: labelSelector}
-	list := egwv1.EndpointList{}
+	list := egwv1.RemoteEndpointList{}
 	err := cl.List(context.TODO(), &list, &listOps)
 
-	activeEPs := []egwv1.Endpoint{}
+	activeEPs := []egwv1.RemoteEndpoint{}
 	// build a new list with no "in deletion" endpoints
 	for _, endpoint := range list.Items {
 		if endpoint.ObjectMeta.DeletionTimestamp.IsZero() {

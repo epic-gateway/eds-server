@@ -39,7 +39,7 @@ const (
 	routeName = "local_route"
 )
 
-func serviceToCluster(service egwv1.LoadBalancer, endpoints []egwv1.Endpoint) *cluster.Cluster {
+func serviceToCluster(service egwv1.LoadBalancer, endpoints []egwv1.RemoteEndpoint) *cluster.Cluster {
 	// Translate EGW endpoints into Envoy LbEndpoints
 	lbEndpoints := make([]*endpoint.LbEndpoint, len(endpoints))
 	for i, ep := range endpoints {
@@ -65,7 +65,7 @@ func serviceToCluster(service egwv1.LoadBalancer, endpoints []egwv1.Endpoint) *c
 // EndpointToLbEndpoint translates one of our
 // egwv1.LoadBalancerEndpoints into one of Envoy's
 // endpoint.LbEndpoints.
-func EndpointToLbEndpoint(ep egwv1.Endpoint) *endpoint.LbEndpoint {
+func EndpointToLbEndpoint(ep egwv1.RemoteEndpoint) *endpoint.LbEndpoint {
 	return &endpoint.LbEndpoint{
 		HostIdentifier: &endpoint.LbEndpoint_Endpoint{
 			Endpoint: &endpoint.Endpoint{
@@ -172,7 +172,7 @@ func makeRoute(routeName string, clusterName string, upstreamHost string) *route
 
 // ServiceToSnapshot translates one of our egwv1.LoadBalancers into an
 // xDS cachev3.Snapshot.
-func ServiceToSnapshot(version int, service egwv1.LoadBalancer, endpoints []egwv1.Endpoint) cachev3.Snapshot {
+func ServiceToSnapshot(version int, service egwv1.LoadBalancer, endpoints []egwv1.RemoteEndpoint) cachev3.Snapshot {
 	return cachev3.NewSnapshot(
 		strconv.Itoa(version),
 		[]types.Resource{}, // endpoints

@@ -40,7 +40,7 @@ func (cb callbacks) LoadBalancerDeleted(namespace string, LBName string) {
 	envoy.ClearModel(nodeID)
 }
 
-func (cb callbacks) EndpointChanged(version int, service *egwv1.LoadBalancer, endpoints []egwv1.Endpoint) error {
+func (cb callbacks) EndpointChanged(version int, service *egwv1.LoadBalancer, endpoints []egwv1.RemoteEndpoint) error {
 	log.Printf("service changed to version %d:\n%#v\n%#v", version, service, endpoints)
 	nodeID := service.ObjectMeta.Namespace + "/" + service.ObjectMeta.Name
 	if err := envoy.UpdateModel(version, nodeID, *service, endpoints); err != nil {
@@ -99,7 +99,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "LoadBalancer")
 		os.Exit(1)
 	}
-	if err = (&controllers.EndpointReconciler{
+	if err = (&controllers.RemoteEndpointReconciler{
 		Client:    mgr.GetClient(),
 		Log:       ctrl.Log.WithName("controllers").WithName("Endpoint"),
 		Callbacks: callbacks{},
