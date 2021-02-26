@@ -15,7 +15,6 @@
 package envoy
 
 import (
-	"fmt"
 	"strconv"
 	"time"
 
@@ -25,18 +24,10 @@ import (
 	cluster "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	endpoint "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
-	listener "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
-	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
-	hcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	cachev3 "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
-	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
 
 	egwv1 "gitlab.com/acnodal/egw-resource-model/api/v1"
-)
-
-const (
-	routeName = "local_route"
 )
 
 func serviceToCluster(service egwv1.LoadBalancer, endpoints []egwv1.RemoteEndpoint) *cluster.Cluster {
@@ -85,91 +76,6 @@ func EndpointToLbEndpoint(ep egwv1.RemoteEndpoint) *endpoint.LbEndpoint {
 	}
 }
 
-// makeHTTPListeners translates an egwv1.LoadBalancer's ports into
-// Envoy Listener objects.
-func makeHTTPListeners(service egwv1.LoadBalancer, route string, upstreamHost string) []types.Resource {
-	resources := make([]types.Resource, len(service.Spec.PublicPorts))
-
-	for i, port := range service.Spec.PublicPorts {
-		resources[i] = makeHTTPListener(service.Name, port, route, upstreamHost)
-	}
-
-	return resources
-}
-
-func makeHTTPListener(serviceName string, port v1.ServicePort, route string, upstreamHost string) *listener.Listener {
-	manager := &hcm.HttpConnectionManager{
-		CodecType:  hcm.HttpConnectionManager_AUTO,
-		StatPrefix: "http",
-		RouteSpecifier: &hcm.HttpConnectionManager_RouteConfig{
-			RouteConfig: makeRoute(routeName, serviceName, upstreamHost),
-		},
-		HttpFilters: []*hcm.HttpFilter{{
-			Name: wellknown.Router,
-		}},
-	}
-	pbst, err := ptypes.MarshalAny(manager)
-	if err != nil {
-		panic(err)
-	}
-
-	// Fill in a default name if none was provided
-	listenerName := port.Name
-	if listenerName == "" {
-		listenerName = fmt.Sprintf("%s-%d", port.Protocol, port.Port)
-	}
-
-	return &listener.Listener{
-		Name: listenerName,
-		Address: &core.Address{
-			Address: &core.Address_SocketAddress{
-				SocketAddress: &core.SocketAddress{
-					Protocol: protocolToProtocol(port.Protocol),
-					Address:  "0.0.0.0",
-					PortSpecifier: &core.SocketAddress_PortValue{
-						PortValue: uint32(port.Port),
-					},
-				},
-			},
-		},
-		FilterChains: []*listener.FilterChain{{
-			Filters: []*listener.Filter{{
-				Name: wellknown.HTTPConnectionManager,
-				ConfigType: &listener.Filter_TypedConfig{
-					TypedConfig: pbst,
-				},
-			}},
-		}},
-	}
-}
-
-func makeRoute(routeName string, clusterName string, upstreamHost string) *route.RouteConfiguration {
-	return &route.RouteConfiguration{
-		Name: routeName,
-		VirtualHosts: []*route.VirtualHost{{
-			Name:    "local_service",
-			Domains: []string{"*"},
-			Routes: []*route.Route{{
-				Match: &route.RouteMatch{
-					PathSpecifier: &route.RouteMatch_Prefix{
-						Prefix: "/",
-					},
-				},
-				Action: &route.Route_Route{
-					Route: &route.RouteAction{
-						ClusterSpecifier: &route.RouteAction_Cluster{
-							Cluster: clusterName,
-						},
-						HostRewriteSpecifier: &route.RouteAction_HostRewriteLiteral{
-							HostRewriteLiteral: upstreamHost,
-						},
-					},
-				},
-			}},
-		}},
-	}
-}
-
 // ServiceToSnapshot translates one of our egwv1.LoadBalancers into an
 // xDS cachev3.Snapshot.
 func ServiceToSnapshot(version int, service egwv1.LoadBalancer, endpoints []egwv1.RemoteEndpoint) cachev3.Snapshot {
@@ -178,9 +84,7 @@ func ServiceToSnapshot(version int, service egwv1.LoadBalancer, endpoints []egwv
 		[]types.Resource{}, // endpoints
 		[]types.Resource{serviceToCluster(service, endpoints)},
 		[]types.Resource{}, // routes
-		// FIXME: we currently need this Address because we're doing HTTP
-		// rewriting which we probably don't want to do
-		makeHTTPListeners(service, routeName, service.Spec.PublicAddress),
+		[]types.Resource{}, // listeners
 		[]types.Resource{}, // runtimes
 		[]types.Resource{}, // secrets
 	)
