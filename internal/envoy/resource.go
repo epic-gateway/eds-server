@@ -21,11 +21,11 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	v1 "k8s.io/api/core/v1"
 
-	cluster "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
-	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	endpoint "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
+	cluster "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	endpoint "github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
-	cachev3 "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
+	cachev2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 
 	egwv1 "gitlab.com/acnodal/egw-resource-model/api/v1"
 )
@@ -44,7 +44,7 @@ func serviceToCluster(service egwv1.LoadBalancer, endpoints []egwv1.RemoteEndpoi
 		DnsLookupFamily:      cluster.Cluster_V4_ONLY, // FIXME: using IPV6 I get:
 		// upstream connect error or disconnect/reset before headers. reset reason: connection failure
 		LbPolicy: cluster.Cluster_ROUND_ROBIN,
-		LoadAssignment: &endpoint.ClusterLoadAssignment{
+		LoadAssignment: &cluster.ClusterLoadAssignment{
 			ClusterName: service.Name,
 			Endpoints: []*endpoint.LocalityLbEndpoints{{
 				LbEndpoints: lbEndpoints,
@@ -77,9 +77,9 @@ func EndpointToLbEndpoint(ep egwv1.RemoteEndpoint) *endpoint.LbEndpoint {
 }
 
 // ServiceToSnapshot translates one of our egwv1.LoadBalancers into an
-// xDS cachev3.Snapshot.
-func ServiceToSnapshot(version int, service egwv1.LoadBalancer, endpoints []egwv1.RemoteEndpoint) cachev3.Snapshot {
-	return cachev3.NewSnapshot(
+// xDS cachev2.Snapshot.
+func ServiceToSnapshot(version int, service egwv1.LoadBalancer, endpoints []egwv1.RemoteEndpoint) cachev2.Snapshot {
+	return cachev2.NewSnapshot(
 		strconv.Itoa(version),
 		[]types.Resource{}, // endpoints
 		[]types.Resource{serviceToCluster(service, endpoints)},

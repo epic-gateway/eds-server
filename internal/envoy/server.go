@@ -22,33 +22,22 @@ import (
 
 	"google.golang.org/grpc"
 
-	clusterservice "github.com/envoyproxy/go-control-plane/envoy/service/cluster/v3"
-	discoverygrpc "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
-	endpointservice "github.com/envoyproxy/go-control-plane/envoy/service/endpoint/v3"
-	listenerservice "github.com/envoyproxy/go-control-plane/envoy/service/listener/v3"
-	routeservice "github.com/envoyproxy/go-control-plane/envoy/service/route/v3"
-	runtimeservice "github.com/envoyproxy/go-control-plane/envoy/service/runtime/v3"
-	secretservice "github.com/envoyproxy/go-control-plane/envoy/service/secret/v3"
-	serverv3 "github.com/envoyproxy/go-control-plane/pkg/server/v3"
+	discoverygrpc "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
+	serverv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
 )
 
 const (
 	grpcMaxConcurrentStreams = 1000000
 )
 
-func registerServer(grpcServer *grpc.Server, server serverv3.Server) {
+func registerServer(grpcServer *grpc.Server, server serverv2.Server) {
 	// register services
 	discoverygrpc.RegisterAggregatedDiscoveryServiceServer(grpcServer, server)
-	endpointservice.RegisterEndpointDiscoveryServiceServer(grpcServer, server)
-	clusterservice.RegisterClusterDiscoveryServiceServer(grpcServer, server)
-	routeservice.RegisterRouteDiscoveryServiceServer(grpcServer, server)
-	listenerservice.RegisterListenerDiscoveryServiceServer(grpcServer, server)
-	secretservice.RegisterSecretDiscoveryServiceServer(grpcServer, server)
-	runtimeservice.RegisterRuntimeDiscoveryServiceServer(grpcServer, server)
+	discoverygrpc.RegisterRuntimeDiscoveryServiceServer(grpcServer, server)
 }
 
 // starts an xDS server on the given port
-func runServer(ctx context.Context, srv3 serverv3.Server, port uint) {
+func runServer(ctx context.Context, srv2 serverv2.Server, port uint) {
 	// gRPC golang library sets a very small upper bound for the number gRPC/h2
 	// streams over a single TCP connection. If a proxy multiplexes requests over
 	// a single connection to the management server, then it might lead to
@@ -62,7 +51,7 @@ func runServer(ctx context.Context, srv3 serverv3.Server, port uint) {
 		log.Fatal(err)
 	}
 
-	registerServer(grpcServer, srv3)
+	registerServer(grpcServer, srv2)
 
 	log.Printf("management server listening on %d\n", port)
 	if err = grpcServer.Serve(lis); err != nil {

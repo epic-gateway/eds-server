@@ -3,15 +3,15 @@ package envoy
 import (
 	"context"
 
-	cachev3 "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
-	serverv3 "github.com/envoyproxy/go-control-plane/pkg/server/v3"
-	testv3 "github.com/envoyproxy/go-control-plane/pkg/test/v3"
+	cachev2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
+	serverv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
+	testv2 "github.com/envoyproxy/go-control-plane/pkg/test/v2"
 
 	egwv1 "gitlab.com/acnodal/egw-resource-model/api/v1"
 )
 
 var (
-	cache cachev3.SnapshotCache
+	cache cachev2.SnapshotCache
 	l     Logger
 )
 
@@ -21,7 +21,7 @@ func UpdateModel(version int, nodeID string, service egwv1.LoadBalancer, endpoin
 	return updateSnapshot(nodeID, snapshot)
 }
 
-func updateSnapshot(nodeID string, snapshot cachev3.Snapshot) error {
+func updateSnapshot(nodeID string, snapshot cachev2.Snapshot) error {
 	if err := snapshot.Consistent(); err != nil {
 		l.Errorf("snapshot inconsistency: %+v\n%+v", snapshot, err)
 		return err
@@ -48,12 +48,12 @@ func LaunchControlPlane(xDSPort uint, debug bool) error {
 	l = Logger{Debug: debug}
 
 	// create a cache
-	cache = cachev3.NewSnapshotCache(false, cachev3.IDHash{}, l)
-	cbv3 := &testv3.Callbacks{Debug: debug}
-	srv3 := serverv3.NewServer(context.Background(), cache, cbv3)
+	cache = cachev2.NewSnapshotCache(false, cachev2.IDHash{}, l)
+	cbv2 := &testv2.Callbacks{Debug: debug}
+	srv2 := serverv2.NewServer(context.Background(), cache, cbv2)
 
 	// run the xDS server
-	runServer(context.Background(), srv3, xDSPort)
+	runServer(context.Background(), srv2, xDSPort)
 
 	return nil
 }
