@@ -15,10 +15,9 @@
 package envoy
 
 import (
+	"fmt"
 	"strconv"
-	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	v1 "k8s.io/api/core/v1"
 
 	cluster "github.com/envoyproxy/go-control-plane/envoy/api/v2"
@@ -30,49 +29,42 @@ import (
 	egwv1 "gitlab.com/acnodal/egw-resource-model/api/v1"
 )
 
-func serviceToCluster(service egwv1.LoadBalancer, endpoints []egwv1.RemoteEndpoint) *cluster.Cluster {
-	// Translate EGW endpoints into Envoy LbEndpoints
-	lbEndpoints := make([]*endpoint.LbEndpoint, len(endpoints))
-	for i, ep := range endpoints {
-		lbEndpoints[i] = EndpointToLbEndpoint(ep)
+func serviceToCLA(service egwv1.LoadBalancer, reps []egwv1.RemoteEndpoint) *cluster.ClusterLoadAssignment {
+	fmt.Printf("\n\n\nprocessing reps\n")
+	// Translate EGW RemoteEndpoints into Envoy LocalityLbEndpoints
+	endpoints := make([]*endpoint.LocalityLbEndpoints, len(reps))
+	for i, ep := range reps {
+		fmt.Printf("processing rep %s/%s\n", ep.Namespace, ep.Name)
+		endpoints[i] = repToEndpoint(ep)
 	}
 
-	return &cluster.Cluster{
-		Name:                 service.Name,
-		ConnectTimeout:       ptypes.DurationProto(5 * time.Second),
-		ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_STATIC},
-		DnsLookupFamily:      cluster.Cluster_V4_ONLY, // FIXME: using IPV6 I get:
-		// upstream connect error or disconnect/reset before headers. reset reason: connection failure
-		LbPolicy: cluster.Cluster_ROUND_ROBIN,
-		LoadAssignment: &cluster.ClusterLoadAssignment{
-			ClusterName: service.Name,
-			Endpoints: []*endpoint.LocalityLbEndpoints{{
-				LbEndpoints: lbEndpoints,
-			}},
-		},
+	return &cluster.ClusterLoadAssignment{
+		ClusterName: "purelb", // FIXME
+		Endpoints:   endpoints,
 	}
 }
 
-// EndpointToLbEndpoint translates one of our
-// egwv1.LoadBalancerEndpoints into one of Envoy's
-// endpoint.LbEndpoints.
-func EndpointToLbEndpoint(ep egwv1.RemoteEndpoint) *endpoint.LbEndpoint {
-	return &endpoint.LbEndpoint{
-		HostIdentifier: &endpoint.LbEndpoint_Endpoint{
-			Endpoint: &endpoint.Endpoint{
-				Address: &core.Address{
-					Address: &core.Address_SocketAddress{
-						SocketAddress: &core.SocketAddress{
-							Protocol: protocolToProtocol(ep.Spec.Port.Protocol),
-							Address:  ep.Spec.Address,
-							PortSpecifier: &core.SocketAddress_PortValue{
-								PortValue: uint32(ep.Spec.Port.Port),
+// repToEndpoint translates one of our egwv1.RemoteEndpoint into one
+// of Envoy's endpoint.LocalityLbEndpoints.
+func repToEndpoint(ep egwv1.RemoteEndpoint) *endpoint.LocalityLbEndpoints {
+	return &endpoint.LocalityLbEndpoints{
+		LbEndpoints: []*endpoint.LbEndpoint{{
+			HostIdentifier: &endpoint.LbEndpoint_Endpoint{
+				Endpoint: &endpoint.Endpoint{
+					Address: &core.Address{
+						Address: &core.Address_SocketAddress{
+							SocketAddress: &core.SocketAddress{
+								Protocol: protocolToProtocol(ep.Spec.Port.Protocol),
+								Address:  ep.Spec.Address,
+								PortSpecifier: &core.SocketAddress_PortValue{
+									PortValue: uint32(ep.Spec.Port.Port),
+								},
 							},
 						},
 					},
 				},
 			},
-		},
+		}},
 	}
 }
 
@@ -81,12 +73,12 @@ func EndpointToLbEndpoint(ep egwv1.RemoteEndpoint) *endpoint.LbEndpoint {
 func ServiceToSnapshot(version int, service egwv1.LoadBalancer, endpoints []egwv1.RemoteEndpoint) cachev2.Snapshot {
 	return cachev2.NewSnapshot(
 		strconv.Itoa(version),
-		[]types.Resource{}, // endpoints
-		[]types.Resource{serviceToCluster(service, endpoints)},
-		[]types.Resource{}, // routes
-		[]types.Resource{}, // listeners
-		[]types.Resource{}, // runtimes
-		[]types.Resource{}, // secrets
+		[]types.Resource{serviceToCLA(service, endpoints)}, // endpoints
+		[]types.Resource{},                                 // clusters
+		[]types.Resource{},                                 // routes
+		[]types.Resource{},                                 // listeners
+		[]types.Resource{},                                 // runtimes
+		[]types.Resource{},                                 // secrets
 	)
 }
 
