@@ -22,10 +22,6 @@ func UpdateModel(version int, nodeID string, service egwv1.LoadBalancer, endpoin
 }
 
 func updateSnapshot(nodeID string, snapshot cachev2.Snapshot) error {
-	if err := snapshot.Consistent(); err != nil {
-		l.Errorf("snapshot inconsistency: %+v\n%+v", snapshot, err)
-		return err
-	}
 	l.Debugf("will serve snapshot %#v", snapshot)
 
 	// add the snapshot to the cache
