@@ -22,6 +22,7 @@ import (
 
 	"google.golang.org/grpc"
 
+	endpointv2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	discoverygrpc "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
 	serverv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
 )
@@ -32,6 +33,7 @@ const (
 
 func registerServer(grpcServer *grpc.Server, server serverv2.Server) {
 	// register services
+	endpointv2.RegisterEndpointDiscoveryServiceServer(grpcServer, server)
 	discoverygrpc.RegisterAggregatedDiscoveryServiceServer(grpcServer, server)
 	discoverygrpc.RegisterRuntimeDiscoveryServiceServer(grpcServer, server)
 }
