@@ -1,93 +1,104 @@
-// Copyright 2020 Envoyproxy Authors
-//
-//   Licensed under the Apache License, Version 2.0 (the "License");
-//   you may not use this file except in compliance with the License.
-//   You may obtain a copy of the License at
-//
-//       http://www.apache.org/licenses/LICENSE-2.0
-//
-//   Unless required by applicable law or agreed to in writing, software
-//   distributed under the License is distributed on an "AS IS" BASIS,
-//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//   See the License for the specific language governing permissions and
-//   limitations under the License.
-
 package envoy
 
 import (
+	"bytes"
 	"fmt"
+	"html/template"
 	"strconv"
+	"strings"
 
+	"github.com/ghodss/yaml"
+	"github.com/golang/protobuf/jsonpb"
 	v1 "k8s.io/api/core/v1"
 
 	cluster "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	endpoint "github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	cachev2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 
 	egwv1 "gitlab.com/acnodal/egw-resource-model/api/v1"
 )
 
-func serviceToCLA(service egwv1.LoadBalancer, reps []egwv1.RemoteEndpoint) *cluster.ClusterLoadAssignment {
-	fmt.Printf("\n\n\nprocessing reps\n")
-	// Translate EGW RemoteEndpoints into Envoy LocalityLbEndpoints
-	endpoints := make([]*endpoint.LocalityLbEndpoints, len(reps))
-	for i, ep := range reps {
-		fmt.Printf("processing rep %s/%s\n", ep.Namespace, ep.Name)
-		endpoints[i] = repToEndpoint(ep)
+var (
+	funcMap = template.FuncMap{
+		// This function is used by the template to ensure that protocol
+		// names (e.g., "TCP") are always in caps.
+		"ToUpper": func(protocol v1.Protocol) string {
+			return strings.ToUpper(string(protocol))
+		},
 	}
+)
 
-	return &cluster.ClusterLoadAssignment{
-		ClusterName: "purelb", // FIXME
-		Endpoints:   endpoints,
-	}
+// The parameters that we pass into the template.
+type claParams struct {
+	ClusterName string
+	ServiceName string
+	Endpoints   []egwv1.RemoteEndpoint
 }
 
-// repToEndpoint translates one of our egwv1.RemoteEndpoint into one
-// of Envoy's endpoint.LocalityLbEndpoints.
-func repToEndpoint(ep egwv1.RemoteEndpoint) *endpoint.LocalityLbEndpoints {
-	return &endpoint.LocalityLbEndpoints{
-		LbEndpoints: []*endpoint.LbEndpoint{{
-			HostIdentifier: &endpoint.LbEndpoint_Endpoint{
-				Endpoint: &endpoint.Endpoint{
-					Address: &core.Address{
-						Address: &core.Address_SocketAddress{
-							SocketAddress: &core.SocketAddress{
-								Protocol: protocolToProtocol(ep.Spec.Port.Protocol),
-								Address:  ep.Spec.Address,
-								PortSpecifier: &core.SocketAddress_PortValue{
-									PortValue: uint32(ep.Spec.Port.Port),
-								},
-							},
-						},
-					},
-				},
-			},
-		}},
+func unmarshalYAMLCLA(str string, cla *cluster.ClusterLoadAssignment) error {
+	b, err := yaml.YAMLToJSON([]byte(str))
+	if err != nil {
+		return fmt.Errorf("Error converting yaml to json: '%s'", err)
 	}
+
+	if err := jsonpb.Unmarshal(bytes.NewReader(b), types.Resource(cla)); err != nil {
+		return fmt.Errorf("Error deserializing resource: '%s'", err)
+	}
+
+	return nil
 }
 
-// ServiceToSnapshot translates one of our egwv1.LoadBalancers into an
-// xDS cachev2.Snapshot.
-func ServiceToSnapshot(version int, service egwv1.LoadBalancer, endpoints []egwv1.RemoteEndpoint) cachev2.Snapshot {
+// serviceToCLA translates our LoadBalancer service CR into an Envoy
+// ClusterLoadAssignment, using a template in the LB Spec.
+func serviceToCLA(service egwv1.LoadBalancer, reps []egwv1.RemoteEndpoint) (*cluster.ClusterLoadAssignment, error) {
+	var (
+		err error
+		cla cluster.ClusterLoadAssignment
+	)
+
+	// Get the Template ready to execute.
+	tmpl := &template.Template{}
+	tmplText := service.Spec.EnvoyTemplate.EnvoyResources.Endpoints[0].Value
+	if tmpl, err = template.New("cla").Funcs(funcMap).Parse(tmplText); err != nil {
+		return &cla, err
+	}
+
+	// Give the Template its parameters and execute it.
+	doc := bytes.Buffer{}
+	if err := tmpl.Execute(&doc, claParams{
+		ClusterName: service.Namespace + "." + service.Name,
+		ServiceName: service.Name,
+		Endpoints:   reps,
+	}); err != nil {
+		return &cla, err
+	}
+
+	// The output of the Template is a String, but we need to provide a
+	// Golang ClusterLoadAssignment to the cache, so we need to
+	// unmarshal it.
+	if err := unmarshalYAMLCLA(doc.String(), &cla); err != nil {
+		return &cla, err
+	}
+
+	return &cla, nil
+}
+
+// ServiceToSnapshot translates one of our egwv1.LoadBalancers and its
+// reps into an xDS cachev2.Snapshot. The Snapshot contains only the
+// endpoints.
+func ServiceToSnapshot(version int, service egwv1.LoadBalancer, reps []egwv1.RemoteEndpoint) (cachev2.Snapshot, error) {
+	cla, err := serviceToCLA(service, reps)
+	if err != nil {
+		return cachev2.Snapshot{}, err
+	}
+
 	return cachev2.NewSnapshot(
 		strconv.Itoa(version),
-		[]types.Resource{serviceToCLA(service, endpoints)}, // endpoints
-		[]types.Resource{},                                 // clusters
-		[]types.Resource{},                                 // routes
-		[]types.Resource{},                                 // listeners
-		[]types.Resource{},                                 // runtimes
-		[]types.Resource{},                                 // secrets
-	)
-}
-
-// protocolToProtocol translates from k8s core Protocol objects to
-// Envoy code SocketAddress_Protocol objects.
-func protocolToProtocol(protocol v1.Protocol) core.SocketAddress_Protocol {
-	eProto := core.SocketAddress_TCP
-	if protocol == v1.ProtocolUDP {
-		eProto = core.SocketAddress_UDP
-	}
-	return eProto
+		[]types.Resource{cla}, // endpoints
+		[]types.Resource{},    // clusters
+		[]types.Resource{},    // routes
+		[]types.Resource{},    // listeners
+		[]types.Resource{},    // runtimes
+		[]types.Resource{},    // secrets
+	), nil
 }

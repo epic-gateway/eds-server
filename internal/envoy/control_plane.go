@@ -17,7 +17,10 @@ var (
 
 // UpdateModel updates Envoy's model with new info about this LB.
 func UpdateModel(version int, nodeID string, service egwv1.LoadBalancer, endpoints []egwv1.RemoteEndpoint) error {
-	snapshot := ServiceToSnapshot(version, service, endpoints)
+	snapshot, err := ServiceToSnapshot(version, service, endpoints)
+	if err != nil {
+		return err
+	}
 	return updateSnapshot(nodeID, snapshot)
 }
 
