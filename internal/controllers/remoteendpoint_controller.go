@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	egwv1 "gitlab.com/acnodal/egw-resource-model/api/v1"
 )
@@ -45,9 +46,11 @@ func (r *RemoteEndpointReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	ctx := context.TODO()
 	l := r.Log.WithValues("endpoint", req.NamespacedName)
 
+	l.Info("reconciling")
+
 	// get the object that caused the event
-	ep := &egwv1.RemoteEndpoint{}
-	if err := r.Get(ctx, req.NamespacedName, ep); err != nil {
+	rep := &egwv1.RemoteEndpoint{}
+	if err := r.Get(ctx, req.NamespacedName, rep); err != nil {
 		l.Info("can't get resource, probably deleted")
 		// ignore not-found errors, since they can't be fixed by an
 		// immediate requeue (we'll need to wait for a new notification),
@@ -55,16 +58,23 @@ func (r *RemoteEndpointReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		return done, client.IgnoreNotFound(err)
 	}
 
-	// This endpoint is marked to be deleted. Remove our finalizer
-	// before we do anything else to ensure that we don't block the
-	// endpoint from being deleted.
-	if !ep.ObjectMeta.DeletionTimestamp.IsZero() {
-		if containsString(ep.ObjectMeta.Finalizers, epFinalizerName) {
-			l.Info("removing finalizer to allow delete to proceed")
-
-			// remove our finalizer from the list and update it.
-			ep.ObjectMeta.Finalizers = removeString(ep.ObjectMeta.Finalizers, epFinalizerName)
-			if err := r.Update(context.Background(), ep); err != nil {
+	if !rep.ObjectMeta.DeletionTimestamp.IsZero() {
+		// This endpoint is marked to be deleted. Remove our finalizer
+		// before we do anything else to ensure that we don't block the
+		// endpoint CR from being deleted.
+		if controllerutil.ContainsFinalizer(rep, epFinalizerName) {
+			// remove our finalizer from the list and update the object
+			controllerutil.RemoveFinalizer(rep, epFinalizerName)
+			if err := r.Update(ctx, rep); err != nil {
+				return done, err
+			}
+		}
+	} else {
+		// The object is not being deleted, so if it does not have our
+		// finalizer, then add it and update the object.
+		if !controllerutil.ContainsFinalizer(rep, epFinalizerName) {
+			controllerutil.AddFinalizer(rep, epFinalizerName)
+			if err := r.Update(ctx, rep); err != nil {
 				return done, err
 			}
 		}
@@ -72,7 +82,7 @@ func (r *RemoteEndpointReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 
 	// get the parent LB
 	lb := &egwv1.LoadBalancer{}
-	if err := r.Get(ctx, types.NamespacedName{Namespace: ep.Namespace, Name: ep.Labels[egwv1.OwningLoadBalancerLabel]}, lb); err != nil {
+	if err := r.Get(ctx, types.NamespacedName{Namespace: rep.Namespace, Name: rep.Labels[egwv1.OwningLoadBalancerLabel]}, lb); err != nil {
 		return done, err
 	}
 
@@ -82,16 +92,7 @@ func (r *RemoteEndpointReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		return done, err
 	}
 
-	if ep.ObjectMeta.DeletionTimestamp.IsZero() {
-		// The object is not being deleted, so if it does not have our
-		// finalizer, then lets add the finalizer and update the
-		// object. This is equivalent to registering our finalizer.
-		if !containsString(ep.ObjectMeta.Finalizers, epFinalizerName) {
-			ep.ObjectMeta.Finalizers = append(ep.ObjectMeta.Finalizers, epFinalizerName)
-			if err := r.Update(context.Background(), ep); err != nil {
-				return ctrl.Result{}, err
-			}
-		}
+	if rep.ObjectMeta.DeletionTimestamp.IsZero() {
 	}
 
 	// Allocate a snapshot version from the LB
@@ -162,24 +163,4 @@ func nextSnapshotVersion(ctx context.Context, cl client.Client, lb *egwv1.LoadBa
 	sg.Status.ProxySnapshotVersions[lb.Name] = version
 
 	return version, cl.Status().Update(ctx, &sg)
-}
-
-// Helper functions to check and remove string from a slice of strings.
-func containsString(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
-}
-
-func removeString(slice []string, s string) (result []string) {
-	for _, item := range slice {
-		if item == s {
-			continue
-		}
-		result = append(result, item)
-	}
-	return
 }

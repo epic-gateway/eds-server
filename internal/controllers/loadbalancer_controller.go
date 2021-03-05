@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	egwv1 "gitlab.com/acnodal/egw-resource-model/api/v1"
 )
@@ -35,6 +36,8 @@ func (r *LoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	ctx := context.TODO()
 	l := r.Log.WithValues("loadbalancer", req.NamespacedName)
 
+	l.Info("reconciling")
+
 	// read the LB that caused the event
 	lb := &egwv1.LoadBalancer{}
 	if err := r.Get(ctx, req.NamespacedName, lb); err != nil {
@@ -45,25 +48,16 @@ func (r *LoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		return done, client.IgnoreNotFound(err)
 	}
 
-	if lb.ObjectMeta.DeletionTimestamp.IsZero() {
-		// The LB is not being deleted, so if it does not have our
-		// finalizer, then add the finalizer and update the object.
-		if !containsString(lb.ObjectMeta.Finalizers, lbFinalizerName) {
-			lb.ObjectMeta.Finalizers = append(lb.ObjectMeta.Finalizers, lbFinalizerName)
-			if err := r.Update(context.Background(), lb); err != nil {
-				return done, err
-			}
-		}
-	} else {
+	if !lb.ObjectMeta.DeletionTimestamp.IsZero() {
 		// This LB is marked to be deleted. Remove our finalizer before we
 		// do anything else to ensure that we don't block the LB CR from
 		// being deleted.
-		if containsString(lb.ObjectMeta.Finalizers, lbFinalizerName) {
+		if controllerutil.ContainsFinalizer(lb, lbFinalizerName) {
 			l.Info("removing finalizer to allow delete to proceed")
 
 			// remove our finalizer from the list and update it.
-			lb.ObjectMeta.Finalizers = removeString(lb.ObjectMeta.Finalizers, lbFinalizerName)
-			if err := r.Update(context.Background(), lb); err != nil {
+			controllerutil.RemoveFinalizer(lb, lbFinalizerName)
+			if err := r.Update(ctx, lb); err != nil {
 				return done, err
 			}
 		}
@@ -71,6 +65,15 @@ func (r *LoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		// Tell the control plane that the LB is being deleted
 		r.Callbacks.LoadBalancerDeleted(lb.Namespace, lb.Name)
 		return done, nil
+	}
+
+	// The LB is not being deleted, so if it does not have our
+	// finalizer, then add the finalizer and update the object.
+	if !controllerutil.ContainsFinalizer(lb, lbFinalizerName) {
+		controllerutil.AddFinalizer(lb, lbFinalizerName)
+		if err := r.Update(ctx, lb); err != nil {
+			return done, err
+		}
 	}
 
 	endpoints, err := listActiveLBEndpoints(r, lb)
