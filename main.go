@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"log"
 	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,15 +35,15 @@ type callbacks struct {
 }
 
 func (cb callbacks) LoadBalancerDeleted(namespace string, LBName string) {
-	nodeID := namespace + "/" + LBName
+	nodeID := namespace + "." + LBName
 	envoy.ClearModel(nodeID)
 }
 
 func (cb callbacks) EndpointChanged(version int, service *egwv1.LoadBalancer, endpoints []egwv1.RemoteEndpoint) error {
-	log.Printf("service changed to version %d:\n%#v\n%#v", version, service, endpoints)
-	nodeID := service.ObjectMeta.Namespace + "/" + service.ObjectMeta.Name
+	nodeID := service.Namespace + "." + service.Name
+	setupLog.Info("nodeID version changed", "nodeid", nodeID, "version", version, "service", service, "endpoints", endpoints)
 	if err := envoy.UpdateModel(version, nodeID, *service, endpoints); err != nil {
-		log.Fatal(err)
+		setupLog.Error(err, "update model failed")
 	}
 	return nil
 }
