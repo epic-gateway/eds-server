@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -22,7 +21,7 @@ const (
 // LoadBalancerCallbacks are how this controller notifies the control
 // plane of object changes.
 type LoadBalancerCallbacks interface {
-	EndpointChanged(int, *egwv1.LoadBalancer, []egwv1.RemoteEndpoint) error
+	EndpointChanged(*egwv1.LoadBalancer, []egwv1.RemoteEndpoint) error
 	LoadBalancerDeleted(string, string)
 }
 
@@ -95,17 +94,9 @@ func (r *RemoteEndpointReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	if rep.ObjectMeta.DeletionTimestamp.IsZero() {
 	}
 
-	// Allocate a snapshot version from the LB
-	version, err := allocateSnapshotVersion(ctx, r, lb)
-	if err != nil {
-		return done, err
-	}
-
-	l.Info("snapshot version allocated", "version", version)
-
 	// tell the control plane about the current state of this LB (and
 	// its EPs)
-	if err := r.Callbacks.EndpointChanged(version, lb, eps); err != nil {
+	if err := r.Callbacks.EndpointChanged(lb, eps); err != nil {
 		return done, err
 	}
 
@@ -117,50 +108,4 @@ func (r *RemoteEndpointReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&egwv1.RemoteEndpoint{}).
 		Complete(r)
-}
-
-// allocateSnapshotVersion allocates a snapshot version that's unique
-// to this process. If this call succeeds (i.e., error is nil) then
-// lb.Status.ProxySnapshotVersion will be unique to this instance of
-// lb.
-func allocateSnapshotVersion(ctx context.Context, cl client.Client, lb *egwv1.LoadBalancer) (version int, err error) {
-	tries := 3
-	for err = fmt.Errorf(""); err != nil && tries > 0; tries-- {
-		version, err = nextSnapshotVersion(ctx, cl, lb)
-	}
-	return version, err
-}
-
-// nextSnapshotVersion gets the next LB snapshot version by doing a
-// read-modify-write cycle. It might be inefficient in terms of not
-// using all of the values that it allocates but it's safe because the
-// Update() will only succeed if the LB hasn't been modified since the
-// Get().
-//
-// This function doesn't retry so if there's a collision with some
-// other process the caller needs to retry.
-func nextSnapshotVersion(ctx context.Context, cl client.Client, lb *egwv1.LoadBalancer) (version int, err error) {
-
-	// get the SG
-	sg := egwv1.ServiceGroup{}
-	err = cl.Get(ctx, types.NamespacedName{Namespace: lb.Namespace, Name: lb.Labels[egwv1.OwningServiceGroupLabel]}, &sg)
-	if err != nil {
-		return -1, err
-	}
-
-	// Initialize this SG's map (if necessary)
-	if versions := sg.Status.ProxySnapshotVersions; versions == nil {
-		sg.Status.ProxySnapshotVersions = map[string]int{}
-	}
-
-	// Initialize or increment this LB's snapshot version
-	version, exists := sg.Status.ProxySnapshotVersions[lb.Name]
-	if !exists {
-		version = 0
-	} else {
-		version++
-	}
-	sg.Status.ProxySnapshotVersions[lb.Name] = version
-
-	return version, cl.Status().Update(ctx, &sg)
 }

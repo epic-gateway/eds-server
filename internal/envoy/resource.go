@@ -50,7 +50,7 @@ func unmarshalYAMLCLA(str string, cla *cluster.ClusterLoadAssignment) error {
 
 // serviceToCLA translates our LoadBalancer service CR into an Envoy
 // ClusterLoadAssignment, using a template in the LB Spec.
-func serviceToCLA(service egwv1.LoadBalancer, reps []egwv1.RemoteEndpoint) (*cluster.ClusterLoadAssignment, error) {
+func serviceToCLA(service *egwv1.LoadBalancer, reps []egwv1.RemoteEndpoint) (*cluster.ClusterLoadAssignment, error) {
 	var (
 		err error
 		cla cluster.ClusterLoadAssignment
@@ -86,7 +86,7 @@ func serviceToCLA(service egwv1.LoadBalancer, reps []egwv1.RemoteEndpoint) (*clu
 // ServiceToSnapshot translates one of our egwv1.LoadBalancers and its
 // reps into an xDS cachev2.Snapshot. The Snapshot contains only the
 // endpoints.
-func ServiceToSnapshot(version int, service egwv1.LoadBalancer, reps []egwv1.RemoteEndpoint) (cachev2.Snapshot, error) {
+func ServiceToSnapshot(version int, service *egwv1.LoadBalancer, reps []egwv1.RemoteEndpoint) (cachev2.Snapshot, error) {
 	cla, err := serviceToCLA(service, reps)
 	if err != nil {
 		return cachev2.Snapshot{}, err

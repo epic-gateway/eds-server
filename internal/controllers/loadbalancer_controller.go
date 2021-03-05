@@ -81,15 +81,8 @@ func (r *LoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		return done, err
 	}
 
-	// Allocate a snapshot version from the LB
-	version, err := allocateSnapshotVersion(ctx, r, lb)
-	if err != nil {
-		return done, err
-	}
-	l.Info("snapshot version allocated", "version", version)
-
 	// tell the control plane about the changed object
-	if err := r.Callbacks.EndpointChanged(version, lb, endpoints); err != nil {
+	if err := r.Callbacks.EndpointChanged(lb, endpoints); err != nil {
 		return done, err
 	}
 

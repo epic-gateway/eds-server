@@ -39,10 +39,10 @@ func (cb callbacks) LoadBalancerDeleted(namespace string, LBName string) {
 	envoy.ClearModel(nodeID)
 }
 
-func (cb callbacks) EndpointChanged(version int, service *egwv1.LoadBalancer, endpoints []egwv1.RemoteEndpoint) error {
+func (cb callbacks) EndpointChanged(service *egwv1.LoadBalancer, endpoints []egwv1.RemoteEndpoint) error {
 	nodeID := service.Namespace + "." + service.Name
-	setupLog.Info("nodeID version changed", "nodeid", nodeID, "version", version, "service", service, "endpoints", endpoints)
-	if err := envoy.UpdateModel(version, nodeID, *service, endpoints); err != nil {
+	setupLog.Info("nodeID version changed", "nodeid", nodeID, "service", service, "endpoints", endpoints)
+	if err := envoy.UpdateModel(nodeID, service, endpoints); err != nil {
 		setupLog.Error(err, "update model failed")
 	}
 	return nil
@@ -95,11 +95,12 @@ func main() {
 
 	// launch the Envoy xDS control plane in the background
 	setupLog.Info("starting xDS control plane")
-	go envoy.LaunchControlPlane(xDSPort, xDSDebug)
+	go envoy.LaunchControlPlane(mgr.GetClient(), xDSPort, xDSDebug)
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+	setupLog.Info("manager returned")
 }
