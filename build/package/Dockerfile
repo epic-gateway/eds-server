@@ -1,18 +1,18 @@
 FROM golang:alpine as builder
 
 ENV GOOS=linux
-ARG GITLAB_TOKEN
+ARG GITLAB_AUTHN
 
 # install and configure git. we need it because some of our modules
 # (e.g., egw-resource-model) are private
 RUN apk add git
-RUN git config --global url."https://oauth2:${GITLAB_TOKEN}@gitlab.com/acnodal".insteadOf https://gitlab.com/acnodal
+RUN git config --global url."https://${GITLAB_AUTHN}@gitlab.com/acnodal".insteadOf https://gitlab.com/acnodal
 
-WORKDIR /usr/src/xds-operator
+WORKDIR /usr/src/epic-eds
 COPY . ./
 
-# build the xDS operator (static)
-RUN go build  -tags 'osusergo netgo' -o /usr/local/bin/xds-operator ./main.go
+# build the executable (static)
+RUN go build  -tags 'osusergo netgo' -o /usr/local/bin/epic-eds ./main.go
 
 
 # start fresh
@@ -25,7 +25,7 @@ RUN apt-get update \
 
 # copy executables from the builder image
 WORKDIR /usr/local/bin
-COPY --from=builder /usr/local/bin/xds-operator ./
+COPY --from=builder /usr/local/bin/epic-eds ./
 
 EXPOSE 8080
-CMD ["/usr/local/bin/xds-operator", "--debug"]
+CMD ["/usr/local/bin/epic-eds", "--debug"]
