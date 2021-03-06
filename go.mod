@@ -1,4 +1,4 @@
-module acnodal.io/egw-ws
+module acnodal.io/epic-eds
 
 go 1.14
 

@@ -11,8 +11,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"acnodal.io/egw-ws/internal/controllers"
-	"acnodal.io/egw-ws/internal/envoy"
+	"acnodal.io/epic-eds/internal/controllers"
+	"acnodal.io/epic-eds/internal/envoy"
 
 	egwv1 "gitlab.com/acnodal/egw-resource-model/api/v1"
 	// +kubebuilder:scaffold:imports
