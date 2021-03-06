@@ -6,6 +6,7 @@ import (
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -14,8 +15,7 @@ import (
 )
 
 const (
-	// name of our custom finalizer
-	lbFinalizerName = "loadbalancer-finalizer.xds-controller.acnodal.io"
+	finalizerName = "loadbalancerReconciler.xdsController.epic.acnodal.io"
 )
 
 // LoadBalancerReconciler reconciles a LoadBalancer object
@@ -52,11 +52,11 @@ func (r *LoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		// This LB is marked to be deleted. Remove our finalizer before we
 		// do anything else to ensure that we don't block the LB CR from
 		// being deleted.
-		if controllerutil.ContainsFinalizer(lb, lbFinalizerName) {
+		if controllerutil.ContainsFinalizer(lb, finalizerName) {
 			l.Info("removing finalizer to allow delete to proceed")
 
 			// remove our finalizer from the list and update it.
-			controllerutil.RemoveFinalizer(lb, lbFinalizerName)
+			controllerutil.RemoveFinalizer(lb, finalizerName)
 			if err := r.Update(ctx, lb); err != nil {
 				return done, err
 			}
@@ -69,9 +69,9 @@ func (r *LoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 
 	// The LB is not being deleted, so if it does not have our
 	// finalizer, then add the finalizer and update the object.
-	if !controllerutil.ContainsFinalizer(lb, lbFinalizerName) {
-		controllerutil.AddFinalizer(lb, lbFinalizerName)
-		if err := r.Update(ctx, lb); err != nil {
+	if !controllerutil.ContainsFinalizer(lb, finalizerName) {
+		patch := `{"metadata":{"finalizers":["` + finalizerName + `"]}}`
+		if err := r.Patch(ctx, lb, client.RawPatch(types.MergePatchType, []byte(patch))); err != nil {
 			return done, err
 		}
 	}
