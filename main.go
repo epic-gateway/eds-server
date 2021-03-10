@@ -19,11 +19,22 @@ import (
 	// +kubebuilder:scaffold:imports
 )
 
+const (
+	// WatchNamespaceEnvVar is the constant for env variable WATCH_NAMESPACE
+	// which specifies the Namespace to watch.
+	// An empty value means the operator is running with cluster scope.
+	watchNamespaceEnvVar string = "WATCH_NAMESPACE"
+	certificateFile      string = "tls.crt"
+	certificateKeyFile   string = "tls.key"
+)
+
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
-	xDSDebug bool
-	xDSPort  uint
+	scheme                       = runtime.NewScheme()
+	setupLog                     = ctrl.Log.WithName("setup")
+	xdssTLSServerCertificatePath string
+	xdssTLSCACertificatePath     string
+	xDSDebug                     bool
+	xDSPort                      uint
 )
 
 func init() {
@@ -63,7 +74,7 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Namespace:          env.GetString("WATCH_NAMESPACE", ""),
+		Namespace:          env.GetString(watchNamespaceEnvVar, ""),
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
 		Port:               9443,
@@ -97,7 +108,7 @@ func main() {
 
 	// launch the Envoy xDS control plane in the background
 	setupLog.Info("starting xDS control plane")
-	go envoy.LaunchControlPlane(mgr.GetClient(), xDSPort, xDSDebug)
+	go envoy.LaunchControlPlane(mgr.GetClient(), setupLog, xDSPort, xDSDebug)
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

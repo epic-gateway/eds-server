@@ -16,11 +16,13 @@ package envoy
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	endpointv2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	discoverygrpc "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
@@ -39,14 +41,15 @@ func registerServer(grpcServer *grpc.Server, server serverv2.Server) {
 }
 
 // starts an xDS server on the given port
-func runServer(ctx context.Context, srv2 serverv2.Server, port uint) {
-	// gRPC golang library sets a very small upper bound for the number gRPC/h2
-	// streams over a single TCP connection. If a proxy multiplexes requests over
-	// a single connection to the management server, then it might lead to
-	// availability problems.
-	var grpcOptions []grpc.ServerOption
-	grpcOptions = append(grpcOptions, grpc.MaxConcurrentStreams(grpcMaxConcurrentStreams))
-	grpcServer := grpc.NewServer(grpcOptions...)
+func runServer(ctx context.Context, srv2 serverv2.Server, port uint, tlsConfig *tls.Config) {
+	grpcServer := grpc.NewServer(
+		// gRPC golang library sets a very small upper bound for the
+		// number gRPC/h2 streams over a single TCP connection. If a proxy
+		// multiplexes requests over a single connection to the management
+		// server, then it might lead to availability problems.
+		grpc.MaxConcurrentStreams(grpcMaxConcurrentStreams),
+		grpc.Creds(credentials.NewTLS(tlsConfig)),
+	)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {

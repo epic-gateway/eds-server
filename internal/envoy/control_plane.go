@@ -2,16 +2,28 @@ package envoy
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"sync"
 
 	cachev2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	serverv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
 	testv2 "github.com/envoyproxy/go-control-plane/pkg/test/v2"
+	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	egwv1 "gitlab.com/acnodal/egw-resource-model/api/v1"
+)
+
+const (
+	tlsServerCertificatePath = "/etc/envoy/tls/server"
+	tlsCACertificatePath     = "/etc/envoy/tls/ca"
+	tlsCertificateFile       = "tls.crt"
+	tlsCertificateKeyFile    = "tls.key"
 )
 
 var (
@@ -63,7 +75,7 @@ func ClearModel(nodeID string) {
 
 // LaunchControlPlane launches an xDS control plane in the
 // foreground. Note that this means that this function doesn't return.
-func LaunchControlPlane(client client.Client, xDSPort uint, debug bool) error {
+func LaunchControlPlane(client client.Client, log logr.Logger, xDSPort uint, debug bool) error {
 	l = Logger{Debug: debug}
 	c = client
 
@@ -73,7 +85,22 @@ func LaunchControlPlane(client client.Client, xDSPort uint, debug bool) error {
 	srv2 := serverv2.NewServer(context.Background(), cache, cbv2)
 
 	// run the xDS server
-	runServer(context.Background(), srv2, xDSPort)
+	runServer(context.Background(),
+		srv2,
+		xDSPort,
+		&tls.Config{
+			MinVersion:               tls.VersionTLS12,
+			CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
+			PreferServerCipherSuites: true,
+			CipherSuites: []uint16{
+				// Sadly, these 2 non 256 are required to use http2 in go
+				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+				tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			},
+			Certificates: []tls.Certificate{loadCertificate(tlsServerCertificatePath, log)},
+			ClientAuth:   tls.RequireAndVerifyClientCert,
+			ClientCAs:    loadCA(tlsCACertificatePath, log),
+		})
 
 	return nil
 }
@@ -122,4 +149,30 @@ func nextSnapshotVersion(ctx context.Context, cl client.Client, lb *egwv1.LoadBa
 	sg.Status.ProxySnapshotVersions[lb.Name] = version
 
 	return version, cl.Status().Update(ctx, &sg)
+}
+func loadCertificate(directory string, logger logr.Logger) tls.Certificate {
+	certificate, err := tls.LoadX509KeyPair(
+		fmt.Sprintf("%s/%s", directory, tlsCertificateFile),
+		fmt.Sprintf("%s/%s", directory, tlsCertificateKeyFile),
+	)
+	if err != nil {
+		logger.Error(err, "Could not load server certificate")
+		os.Exit(1)
+	}
+	return certificate
+}
+
+func loadCA(directory string, logger logr.Logger) *x509.CertPool {
+	certPool := x509.NewCertPool()
+	if bs, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", directory, tlsCertificateFile)); err != nil {
+		logger.Error(err, "Failed to read client ca cert")
+		os.Exit(1)
+	} else {
+		ok := certPool.AppendCertsFromPEM(bs)
+		if !ok {
+			logger.Error(err, "Failed to append client certs")
+			os.Exit(1)
+		}
+	}
+	return certPool
 }
