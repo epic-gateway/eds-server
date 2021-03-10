@@ -26,9 +26,6 @@ type LoadBalancerReconciler struct {
 	Scheme    *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=egw.acnodal.io,resources=loadbalancers,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=egw.acnodal.io,resources=loadbalancers/status,verbs=get;update;patch
-
 // Reconcile is the core of this controller. It gets requests from the
 // controller-runtime and figures out what to do with them.
 func (r *LoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {

@@ -33,9 +33,4 @@ test:
 build:
   stage: build
   script:
-  - make SUFFIX=${TAG_SPECIFIC} GITLAB_AUTHN=gitlab-ci-token:${CI_JOB_TOKEN} manifest install
-
-  artifacts:
-    paths:
-      - config
-      - deploy/*.yaml
+  - make SUFFIX=${TAG_SPECIFIC} GITLAB_AUTHN=gitlab-ci-token:${CI_JOB_TOKEN} install

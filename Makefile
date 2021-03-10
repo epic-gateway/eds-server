@@ -3,7 +3,6 @@ REPO ?= registry.gitlab.com/acnodal
 PREFIX ?= ${PROJECT}
 REGISTRY_IMAGE ?= ${REPO}/${PREFIX}
 SUFFIX = ${USER}-dev
-MANIFEST_SUFFIX = ${SUFFIX}
 
 TAG ?= ${REGISTRY_IMAGE}:${SUFFIX}
 DOCKERFILE=build/package/Dockerfile
@@ -40,10 +39,3 @@ install:	image ## Push the image to the repo
 
 runimage: image ## Run the service using "docker run"
 	docker run --rm --publish=18000:18000 ${TAG}
-
-.PHONY: manifest
-manifest: deploy/epic-eds.yaml ## Generate the deployment manifest
-
-deploy/epic-eds.yaml: config/epic-eds.yaml
-	sed "s registry.gitlab.com/acnodal/xds-operator:unknown ${TAG} " < $^ > $@
-	cp deploy/epic-eds.yaml deploy/epic-eds-${SUFFIX}.yaml
