@@ -48,57 +48,77 @@ func unmarshalYAMLCLA(str string, cla *cluster.ClusterLoadAssignment) error {
 	return nil
 }
 
-// serviceToCLA translates our LoadBalancer service CR into an Envoy
+// serviceToCLAs translates our LoadBalancer service CR into an Envoy
 // ClusterLoadAssignment, using a template in the LB Spec.
-func serviceToCLA(service *egwv1.LoadBalancer, reps []egwv1.RemoteEndpoint) (*cluster.ClusterLoadAssignment, error) {
+func serviceToCLAs(service *egwv1.LoadBalancer, reps []egwv1.RemoteEndpoint) ([]types.Resource, error) {
 	var (
-		err error
-		cla cluster.ClusterLoadAssignment
+		err  error
+		clas []types.Resource = make([]types.Resource, len(service.Spec.UpstreamClusters))
 	)
 
 	// Get the Template ready to execute.
 	tmpl := &template.Template{}
 	tmplText := service.Spec.EnvoyTemplate.EnvoyResources.Endpoints[0].Value
 	if tmpl, err = template.New("cla").Funcs(funcMap).Parse(tmplText); err != nil {
-		return &cla, err
+		return clas, err
 	}
 
-	// Give the Template its parameters and execute it.
-	doc := bytes.Buffer{}
-	if err := tmpl.Execute(&doc, claParams{
-		ClusterName: service.Namespace + "." + service.Name,
-		ServiceName: service.Name,
-		Endpoints:   reps,
-	}); err != nil {
-		return &cla, err
+	for i, clName := range service.Spec.UpstreamClusters {
+		cla := cluster.ClusterLoadAssignment{}
+
+		// Give the Template its parameters and execute it.
+		doc := bytes.Buffer{}
+		if err := tmpl.Execute(&doc, claParams{
+			ClusterName: clName,
+			ServiceName: service.Name,
+			Endpoints:   repsForCluster(reps, clName),
+		}); err != nil {
+			return clas, err
+		}
+
+		// The output of the Template is a String, but we need to provide a
+		// Golang ClusterLoadAssignment to the cache, so we need to
+		// unmarshal it.
+		if err := unmarshalYAMLCLA(doc.String(), &cla); err != nil {
+			return clas, err
+		}
+
+		clas[i] = &cla
 	}
 
-	// The output of the Template is a String, but we need to provide a
-	// Golang ClusterLoadAssignment to the cache, so we need to
-	// unmarshal it.
-	if err := unmarshalYAMLCLA(doc.String(), &cla); err != nil {
-		return &cla, err
+	return clas, nil
+}
+
+// repsForCluster figures out which reps belong to the cluster
+// named "cluster".
+func repsForCluster(reps []egwv1.RemoteEndpoint, cluster string) []egwv1.RemoteEndpoint {
+	clusterReps := []egwv1.RemoteEndpoint{}
+
+	for _, rep := range reps {
+		if rep.Spec.Cluster == cluster {
+			clusterReps = append(clusterReps, rep)
+		}
 	}
 
-	return &cla, nil
+	return clusterReps
 }
 
 // ServiceToSnapshot translates one of our egwv1.LoadBalancers and its
 // reps into an xDS cachev2.Snapshot. The Snapshot contains only the
 // endpoints.
 func ServiceToSnapshot(version int, service *egwv1.LoadBalancer, reps []egwv1.RemoteEndpoint) (cachev2.Snapshot, error) {
-	cla, err := serviceToCLA(service, reps)
+	clas, err := serviceToCLAs(service, reps)
 	if err != nil {
 		return cachev2.Snapshot{}, err
 	}
 
 	return cachev2.NewSnapshot(
 		strconv.Itoa(version),
-		[]types.Resource{cla}, // endpoints
-		[]types.Resource{},    // clusters
-		[]types.Resource{},    // routes
-		[]types.Resource{},    // listeners
-		[]types.Resource{},    // runtimes
-		[]types.Resource{},    // secrets
+		clas,               // endpoints
+		[]types.Resource{}, // clusters
+		[]types.Resource{}, // routes
+		[]types.Resource{}, // listeners
+		[]types.Resource{}, // runtimes
+		[]types.Resource{}, // secrets
 	), nil
 }

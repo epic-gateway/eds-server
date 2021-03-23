@@ -10,7 +10,7 @@ require (
 	github.com/golang/protobuf v1.4.2
 	github.com/onsi/ginkgo v1.14.2
 	github.com/onsi/gomega v1.10.1
-	gitlab.com/acnodal/egw-resource-model v0.5.3-xds1
+	gitlab.com/acnodal/egw-resource-model v0.5.4-pre9
 	google.golang.org/grpc v1.30.0
 	k8s.io/api v0.18.6
 	k8s.io/apimachinery v0.18.6
