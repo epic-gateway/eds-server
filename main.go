@@ -12,10 +12,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"acnodal.io/epic-eds/internal/controllers"
-	"acnodal.io/epic-eds/internal/envoy"
+	"acnodal.io/epic/eds-server/internal/controllers"
+	"acnodal.io/epic/eds-server/internal/envoy"
 
-	egwv1 "gitlab.com/acnodal/egw-resource-model/api/v1"
+	epicv1 "gitlab.com/acnodal/epic/resource-model/api/v1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -39,7 +39,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(egwv1.AddToScheme(scheme))
+	utilruntime.Must(epicv1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -51,7 +51,7 @@ func (cb callbacks) LoadBalancerDeleted(namespace string, LBName string) {
 	envoy.ClearModel(nodeID)
 }
 
-func (cb callbacks) EndpointChanged(service *egwv1.LoadBalancer, endpoints []egwv1.RemoteEndpoint) error {
+func (cb callbacks) EndpointChanged(service *epicv1.LoadBalancer, endpoints []epicv1.RemoteEndpoint) error {
 	nodeID := service.Namespace + "." + service.Name
 	setupLog.Info("nodeID version changed", "nodeid", nodeID, "service", service, "endpoints", endpoints)
 	if err := envoy.UpdateModel(nodeID, service, endpoints); err != nil {

@@ -15,7 +15,7 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	cachev2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 
-	egwv1 "gitlab.com/acnodal/egw-resource-model/api/v1"
+	epicv1 "gitlab.com/acnodal/epic/resource-model/api/v1"
 )
 
 var (
@@ -32,7 +32,7 @@ var (
 type claParams struct {
 	ClusterName string
 	ServiceName string
-	Endpoints   []egwv1.RemoteEndpoint
+	Endpoints   []epicv1.RemoteEndpoint
 }
 
 func unmarshalYAMLCLA(str string, cla *cluster.ClusterLoadAssignment) error {
@@ -50,7 +50,7 @@ func unmarshalYAMLCLA(str string, cla *cluster.ClusterLoadAssignment) error {
 
 // serviceToCLAs translates our LoadBalancer service CR into an Envoy
 // ClusterLoadAssignment, using a template in the LB Spec.
-func serviceToCLAs(service *egwv1.LoadBalancer, reps []egwv1.RemoteEndpoint) ([]types.Resource, error) {
+func serviceToCLAs(service *epicv1.LoadBalancer, reps []epicv1.RemoteEndpoint) ([]types.Resource, error) {
 	var (
 		err  error
 		clas []types.Resource = make([]types.Resource, len(service.Spec.UpstreamClusters))
@@ -91,8 +91,8 @@ func serviceToCLAs(service *egwv1.LoadBalancer, reps []egwv1.RemoteEndpoint) ([]
 
 // repsForCluster figures out which reps belong to the cluster
 // named "cluster".
-func repsForCluster(reps []egwv1.RemoteEndpoint, cluster string) []egwv1.RemoteEndpoint {
-	clusterReps := []egwv1.RemoteEndpoint{}
+func repsForCluster(reps []epicv1.RemoteEndpoint, cluster string) []epicv1.RemoteEndpoint {
+	clusterReps := []epicv1.RemoteEndpoint{}
 
 	for _, rep := range reps {
 		if rep.Spec.Cluster == cluster {
@@ -103,10 +103,10 @@ func repsForCluster(reps []egwv1.RemoteEndpoint, cluster string) []egwv1.RemoteE
 	return clusterReps
 }
 
-// ServiceToSnapshot translates one of our egwv1.LoadBalancers and its
+// ServiceToSnapshot translates one of our epicv1.LoadBalancers and its
 // reps into an xDS cachev2.Snapshot. The Snapshot contains only the
 // endpoints.
-func ServiceToSnapshot(version int, service *egwv1.LoadBalancer, reps []egwv1.RemoteEndpoint) (cachev2.Snapshot, error) {
+func ServiceToSnapshot(version int, service *epicv1.LoadBalancer, reps []epicv1.RemoteEndpoint) (cachev2.Snapshot, error) {
 	clas, err := serviceToCLAs(service, reps)
 	if err != nil {
 		return cachev2.Snapshot{}, err

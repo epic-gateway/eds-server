@@ -11,7 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	egwv1 "gitlab.com/acnodal/egw-resource-model/api/v1"
+	epicv1 "gitlab.com/acnodal/epic/resource-model/api/v1"
 )
 
 const (
@@ -36,7 +36,7 @@ func (r *LoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	l.Info("reconciling")
 
 	// read the LB that caused the event
-	lb := &egwv1.LoadBalancer{}
+	lb := &epicv1.LoadBalancer{}
 	if err := r.Get(ctx, req.NamespacedName, lb); err != nil {
 		l.Info("can't get resource, probably deleted")
 		// ignore not-found errors, since they can't be fixed by an
@@ -88,13 +88,13 @@ func (r *LoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 
 // listActiveLBEndpoints lists the endpoints that belong to lb that
 // are active, i.e., not in the process of being deleted.
-func listActiveLBEndpoints(cl client.Client, lb *egwv1.LoadBalancer) ([]egwv1.RemoteEndpoint, error) {
-	labelSelector := labels.SelectorFromSet(map[string]string{egwv1.OwningLoadBalancerLabel: lb.Name})
+func listActiveLBEndpoints(cl client.Client, lb *epicv1.LoadBalancer) ([]epicv1.RemoteEndpoint, error) {
+	labelSelector := labels.SelectorFromSet(map[string]string{epicv1.OwningLoadBalancerLabel: lb.Name})
 	listOps := client.ListOptions{Namespace: lb.Namespace, LabelSelector: labelSelector}
-	list := egwv1.RemoteEndpointList{}
+	list := epicv1.RemoteEndpointList{}
 	err := cl.List(context.TODO(), &list, &listOps)
 
-	activeEPs := []egwv1.RemoteEndpoint{}
+	activeEPs := []epicv1.RemoteEndpoint{}
 	// build a new list with no "in deletion" endpoints
 	for _, endpoint := range list.Items {
 		if endpoint.ObjectMeta.DeletionTimestamp.IsZero() {
@@ -108,6 +108,6 @@ func listActiveLBEndpoints(cl client.Client, lb *egwv1.LoadBalancer) ([]egwv1.Re
 // SetupWithManager sets up this reconciler to be managed.
 func (r *LoadBalancerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&egwv1.LoadBalancer{}).
+		For(&epicv1.LoadBalancer{}).
 		Complete(r)
 }

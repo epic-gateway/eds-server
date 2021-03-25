@@ -16,7 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	egwv1 "gitlab.com/acnodal/egw-resource-model/api/v1"
+	epicv1 "gitlab.com/acnodal/epic/resource-model/api/v1"
 )
 
 const (
@@ -40,7 +40,7 @@ var (
 )
 
 // UpdateModel updates Envoy's model with new info about this LB.
-func UpdateModel(nodeID string, service *egwv1.LoadBalancer, endpoints []egwv1.RemoteEndpoint) error {
+func UpdateModel(nodeID string, service *epicv1.LoadBalancer, endpoints []epicv1.RemoteEndpoint) error {
 	defer updateLock.Unlock()
 	updateLock.Lock()
 
@@ -109,7 +109,7 @@ func LaunchControlPlane(client client.Client, log logr.Logger, xDSPort uint, deb
 // to this process. If this call succeeds (i.e., error is nil) then
 // lb.Status.ProxySnapshotVersion will be unique to this instance of
 // lb.
-func allocateSnapshotVersion(ctx context.Context, cl client.Client, lb *egwv1.LoadBalancer) (version int, err error) {
+func allocateSnapshotVersion(ctx context.Context, cl client.Client, lb *epicv1.LoadBalancer) (version int, err error) {
 	tries := 3
 	for err = fmt.Errorf(""); err != nil && tries > 0; tries-- {
 		version, err = nextSnapshotVersion(ctx, cl, lb)
@@ -125,11 +125,11 @@ func allocateSnapshotVersion(ctx context.Context, cl client.Client, lb *egwv1.Lo
 //
 // This function doesn't retry so if there's a collision with some
 // other process the caller needs to retry.
-func nextSnapshotVersion(ctx context.Context, cl client.Client, lb *egwv1.LoadBalancer) (version int, err error) {
+func nextSnapshotVersion(ctx context.Context, cl client.Client, lb *epicv1.LoadBalancer) (version int, err error) {
 
 	// get the SG
-	sg := egwv1.ServiceGroup{}
-	err = cl.Get(ctx, types.NamespacedName{Namespace: lb.Namespace, Name: lb.Labels[egwv1.OwningServiceGroupLabel]}, &sg)
+	sg := epicv1.ServiceGroup{}
+	err = cl.Get(ctx, types.NamespacedName{Namespace: lb.Namespace, Name: lb.Labels[epicv1.OwningServiceGroupLabel]}, &sg)
 	if err != nil {
 		return -1, err
 	}

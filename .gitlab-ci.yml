@@ -1,11 +1,4 @@
-image: docker:20.10.3
-services:
-- docker:20.10.3-dind
-variables:
-  PROJECT: $CI_PROJECT_NAME
-before_script:
-- apk add make
-- docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+.set-tag: &set-tag
 - |
   if [ -n "${CI_COMMIT_TAG}" ] ; then
     # If this build is from a git tag, use that as the docker tag.
@@ -14,23 +7,29 @@ before_script:
     # If this build is from a branch, use the name and sha as the
     # docker tag.
     export TAG_SPECIFIC="${CI_COMMIT_REF_NAME}-${CI_COMMIT_SHORT_SHA}"
-    # Build both a commit-specific build and a branch-latest build.
-    export TAG_LATEST="${CI_COMMIT_REF_NAME}-latest"
   fi
 
-stages:
-  - test
-  - build
+variables:
+  PROJECT: $CI_PROJECT_NAME
 
 test:
-  stage: test
-  image: golang:1.15.8-buster
+  image: golang:1.15.9-buster
+
   before_script:
-  - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
+  - echo "machine gitlab.com login gitlab-ci-token password ${CI_JOB_TOKEN}" > ~/.netrc
   - go get golang.org/x/lint/golint
+
   script: make check
 
 build:
-  stage: build
+  image: docker:20.10.5
+  services:
+  - docker:20.10.5-dind
+
+  before_script:
+  - *set-tag
+  - apk add make
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+
   script:
-  - make SUFFIX=${TAG_SPECIFIC} GITLAB_AUTHN=gitlab-ci-token:${CI_JOB_TOKEN} install
+  - make SUFFIX=${TAG_SPECIFIC} GITLAB_USER=gitlab-ci-token GITLAB_PASSWORD=${CI_JOB_TOKEN} install

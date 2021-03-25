@@ -10,7 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	egwv1 "gitlab.com/acnodal/egw-resource-model/api/v1"
+	epicv1 "gitlab.com/acnodal/epic/resource-model/api/v1"
 )
 
 const (
@@ -21,7 +21,7 @@ const (
 // LoadBalancerCallbacks are how this controller notifies the control
 // plane of object changes.
 type LoadBalancerCallbacks interface {
-	EndpointChanged(*egwv1.LoadBalancer, []egwv1.RemoteEndpoint) error
+	EndpointChanged(*epicv1.LoadBalancer, []epicv1.RemoteEndpoint) error
 	LoadBalancerDeleted(string, string)
 }
 
@@ -43,7 +43,7 @@ func (r *RemoteEndpointReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	l.Info("reconciling")
 
 	// get the object that caused the event
-	rep := &egwv1.RemoteEndpoint{}
+	rep := &epicv1.RemoteEndpoint{}
 	if err := r.Get(ctx, req.NamespacedName, rep); err != nil {
 		l.Info("can't get resource, probably deleted")
 		// ignore not-found errors, since they can't be fixed by an
@@ -75,8 +75,8 @@ func (r *RemoteEndpointReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	}
 
 	// get the parent LB
-	lb := &egwv1.LoadBalancer{}
-	if err := r.Get(ctx, types.NamespacedName{Namespace: rep.Namespace, Name: rep.Labels[egwv1.OwningLoadBalancerLabel]}, lb); err != nil {
+	lb := &epicv1.LoadBalancer{}
+	if err := r.Get(ctx, types.NamespacedName{Namespace: rep.Namespace, Name: rep.Labels[epicv1.OwningLoadBalancerLabel]}, lb); err != nil {
 		return done, err
 	}
 
@@ -101,6 +101,6 @@ func (r *RemoteEndpointReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 // SetupWithManager sets up this reconciler to be managed.
 func (r *RemoteEndpointReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&egwv1.RemoteEndpoint{}).
+		For(&epicv1.RemoteEndpoint{}).
 		Complete(r)
 }

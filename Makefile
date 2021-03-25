@@ -1,5 +1,5 @@
-PROJECT ?= xds-operator
-REPO ?= registry.gitlab.com/acnodal
+PROJECT ?= eds-server
+REPO ?= registry.gitlab.com/acnodal/epic
 PREFIX ?= ${PROJECT}
 REGISTRY_IMAGE ?= ${REPO}/${PREFIX}
 SUFFIX = ${USER}-dev
@@ -32,7 +32,7 @@ run: ## Run the service using "go run" (KUBECONFIG needs to be set)
 	go run ./main.go --debug
 
 image:	## Build the Docker image
-	docker build --build-arg=GITLAB_AUTHN --file=${DOCKERFILE} --tag=${TAG} .
+	docker build --build-arg=GITLAB_USER --build-arg=GITLAB_PASSWORD --file=${DOCKERFILE} --tag=${TAG} .
 
 install:	image ## Push the image to the repo
 	docker push ${TAG}

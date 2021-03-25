@@ -1,31 +1,33 @@
 FROM golang:alpine as builder
 
 ENV GOOS=linux
-ARG GITLAB_AUTHN
+ARG GITLAB_USER
+ARG GITLAB_PASSWORD
 
 # install and configure git. we need it because some of our modules
-# (e.g., egw-resource-model) are private
+# (e.g., epic/resource-model) are private
 RUN apk add git
-RUN git config --global url."https://${GITLAB_AUTHN}@gitlab.com/acnodal".insteadOf https://gitlab.com/acnodal
+RUN echo "machine gitlab.com login ${GITLAB_USER} password ${GITLAB_PASSWORD}" > ~/.netrc
 
-WORKDIR /usr/src/epic-eds
+WORKDIR /opt/acnodal/src
 COPY . ./
 
 # build the executable (static)
-RUN go build  -tags 'osusergo netgo' -o /usr/local/bin/epic-eds ./main.go
+RUN go build  -tags 'osusergo netgo' -o ../bin/eds-server main.go
 
 
 # start fresh
-FROM ubuntu:20.04
-
-# install dependencies
-RUN apt-get update \
-    && apt-get install -y libelf-dev \
-    && rm -rf /var/lib/apt/lists/*
+FROM golang:alpine
+ENV bin=/opt/acnodal/bin/eds-server
 
 # copy executables from the builder image
-WORKDIR /usr/local/bin
-COPY --from=builder /usr/local/bin/epic-eds ./
+COPY --from=builder ${bin} ${bin}
 
-EXPOSE 8080
-CMD ["/usr/local/bin/epic-eds", "--debug"]
+EXPOSE 18000
+
+# The softlink is because Dockerfile variable interpolation happens at
+# run-time so if you have variables in the CMD string they won't get
+# resolved to their values.  This lets us have a hard-coded CMD string
+# that links to the image-specific command.
+RUN ln -s ${bin} /opt/acnodal/bin/cmd
+CMD ["/opt/acnodal/bin/cmd"]
