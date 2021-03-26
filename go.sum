@@ -383,6 +383,8 @@ github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9de
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 gitlab.com/acnodal/epic/resource-model v0.6.0-pre2 h1:B0haLeQdE8PzpL3a7aYeW7igcI0mTKdJ7NZcmSgP3gU=
 gitlab.com/acnodal/epic/resource-model v0.6.0-pre2/go.mod h1:l3jFIOc1j4FpId/kteaqZu/tDnBNncfnrH+UygeIlFU=
+gitlab.com/acnodal/epic/resource-model v0.6.0-pre5 h1:xGgxbSgkDHWNO47J1Y55NRmHR1yPrEanB3sqLNJESEQ=
+gitlab.com/acnodal/epic/resource-model v0.6.0-pre5/go.mod h1:l3jFIOc1j4FpId/kteaqZu/tDnBNncfnrH+UygeIlFU=
 gitlab.com/acnodal/packet-forwarding-component/src/go v0.0.0-20201020212529-ed4982208c08 h1:ash0kj++W04QTMonOE40qpGVwJSp/x4STnJe8Fr8C0k=
 gitlab.com/acnodal/packet-forwarding-component/src/go v0.0.0-20201020212529-ed4982208c08/go.mod h1:SDPfSIpwi0eaR90u+CSnzctMM/JOjOJFA+QFnljtC7M=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=

@@ -128,8 +128,8 @@ func allocateSnapshotVersion(ctx context.Context, cl client.Client, lb *epicv1.L
 func nextSnapshotVersion(ctx context.Context, cl client.Client, lb *epicv1.LoadBalancer) (version int, err error) {
 
 	// get the SG
-	sg := epicv1.ServiceGroup{}
-	err = cl.Get(ctx, types.NamespacedName{Namespace: lb.Namespace, Name: lb.Labels[epicv1.OwningServiceGroupLabel]}, &sg)
+	sg := epicv1.LBServiceGroup{}
+	err = cl.Get(ctx, types.NamespacedName{Namespace: lb.Namespace, Name: lb.Labels[epicv1.OwningLBServiceGroupLabel]}, &sg)
 	if err != nil {
 		return -1, err
 	}
