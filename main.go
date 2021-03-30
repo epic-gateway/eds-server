@@ -87,19 +87,19 @@ func main() {
 	}
 
 	if err = (&controllers.LoadBalancerReconciler{
-		Client:    mgr.GetClient(),
-		Log:       ctrl.Log.WithName("controllers").WithName("LoadBalancer"),
-		Callbacks: callbacks{},
-		Scheme:    mgr.GetScheme(),
+		Client:        mgr.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("LoadBalancer"),
+		Callbacks:     callbacks{},
+		RuntimeScheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "LoadBalancer")
 		os.Exit(1)
 	}
 	if err = (&controllers.RemoteEndpointReconciler{
-		Client:    mgr.GetClient(),
-		Log:       ctrl.Log.WithName("controllers").WithName("Endpoint"),
-		Callbacks: callbacks{},
-		Scheme:    mgr.GetScheme(),
+		Client:        mgr.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("Endpoint"),
+		Callbacks:     callbacks{},
+		RuntimeScheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Endpoint")
 		os.Exit(1)

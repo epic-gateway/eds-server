@@ -21,16 +21,15 @@ const (
 // LoadBalancerReconciler reconciles a LoadBalancer object
 type LoadBalancerReconciler struct {
 	client.Client
-	Log       logr.Logger
-	Callbacks LoadBalancerCallbacks
-	Scheme    *runtime.Scheme
+	Log           logr.Logger
+	Callbacks     LoadBalancerCallbacks
+	RuntimeScheme *runtime.Scheme
 }
 
 // Reconcile is the core of this controller. It gets requests from the
 // controller-runtime and figures out what to do with them.
-func (r *LoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *LoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	done := ctrl.Result{Requeue: false}
-	ctx := context.TODO()
 	l := r.Log.WithValues("loadbalancer", req.NamespacedName)
 
 	l.Info("reconciling")
@@ -110,4 +109,9 @@ func (r *LoadBalancerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&epicv1.LoadBalancer{}).
 		Complete(r)
+}
+
+// Scheme returns this reconciler's scheme.
+func (r *LoadBalancerReconciler) Scheme() *runtime.Scheme {
+	return r.RuntimeScheme
 }

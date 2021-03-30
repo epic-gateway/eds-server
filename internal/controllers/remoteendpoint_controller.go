@@ -28,16 +28,15 @@ type LoadBalancerCallbacks interface {
 // RemoteEndpointReconciler reconciles a Endpoint object
 type RemoteEndpointReconciler struct {
 	client.Client
-	Log       logr.Logger
-	Callbacks LoadBalancerCallbacks
-	Scheme    *runtime.Scheme
+	Log           logr.Logger
+	Callbacks     LoadBalancerCallbacks
+	RuntimeScheme *runtime.Scheme
 }
 
 // Reconcile is the core of this controller. It gets requests from the
 // controller-runtime and figures out what to do with them.
-func (r *RemoteEndpointReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *RemoteEndpointReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	done := ctrl.Result{Requeue: false}
-	ctx := context.TODO()
 	l := r.Log.WithValues("endpoint", req.NamespacedName)
 
 	l.Info("reconciling")
@@ -103,4 +102,9 @@ func (r *RemoteEndpointReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&epicv1.RemoteEndpoint{}).
 		Complete(r)
+}
+
+// Scheme returns this reconciler's scheme.
+func (r *RemoteEndpointReconciler) Scheme() *runtime.Scheme {
+	return r.RuntimeScheme
 }
