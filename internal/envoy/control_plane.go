@@ -9,9 +9,9 @@ import (
 	"os"
 	"sync"
 
-	cachev2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
-	serverv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
-	testv2 "github.com/envoyproxy/go-control-plane/pkg/test/v2"
+	cache "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
+	server "github.com/envoyproxy/go-control-plane/pkg/server/v3"
+	"github.com/envoyproxy/go-control-plane/pkg/test/v3"
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -27,11 +27,11 @@ const (
 )
 
 var (
-	cache cachev2.SnapshotCache
-	l     Logger
-	c     client.Client
+	snapshotCache cache.SnapshotCache
+	l             Logger
+	c             client.Client
 
-	// Allocating new cache versions and updating the cache is a
+	// Allocating new snapshot versions and updating the cache is a
 	// critical region. We want to ensure that the version only
 	// increases so we don't want to have a call to UpdateModel() be
 	// interrupted in the middle by another call to UpdateModel()
@@ -56,11 +56,11 @@ func UpdateModel(nodeID string, service *epicv1.LoadBalancer, endpoints []epicv1
 	return updateSnapshot(nodeID, snapshot)
 }
 
-func updateSnapshot(nodeID string, snapshot cachev2.Snapshot) error {
+func updateSnapshot(nodeID string, snapshot cache.Snapshot) error {
 	l.Debugf("will serve snapshot %#v", snapshot)
 
 	// add the snapshot to the cache
-	if err := cache.SetSnapshot(nodeID, snapshot); err != nil {
+	if err := snapshotCache.SetSnapshot(nodeID, snapshot); err != nil {
 		l.Errorf("snapshot error %q for %+v", err, snapshot)
 		return err
 	}
@@ -70,7 +70,7 @@ func updateSnapshot(nodeID string, snapshot cachev2.Snapshot) error {
 
 // ClearModel removes a model from the cache.
 func ClearModel(nodeID string) {
-	cache.ClearSnapshot(nodeID)
+	snapshotCache.ClearSnapshot(nodeID)
 }
 
 // LaunchControlPlane launches an xDS control plane in the
@@ -80,13 +80,13 @@ func LaunchControlPlane(client client.Client, log logr.Logger, xDSPort uint, deb
 	c = client
 
 	// create a cache
-	cache = cachev2.NewSnapshotCache(false, cachev2.IDHash{}, l)
-	cbv2 := &testv2.Callbacks{Debug: debug}
-	srv2 := serverv2.NewServer(context.Background(), cache, cbv2)
+	snapshotCache = cache.NewSnapshotCache(false, cache.IDHash{}, l)
+	cb := &test.Callbacks{Debug: debug}
+	srvr := server.NewServer(context.Background(), snapshotCache, cb)
 
 	// run the xDS server
 	runServer(context.Background(),
-		srv2,
+		srvr,
 		xDSPort,
 		&tls.Config{
 			MinVersion:               tls.VersionTLS12,

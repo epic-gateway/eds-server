@@ -11,9 +11,9 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	v1 "k8s.io/api/core/v1"
 
-	cluster "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	endpoint "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
-	cachev2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
+	cache "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 
 	epicv1 "gitlab.com/acnodal/epic/resource-model/api/v1"
 )
@@ -35,7 +35,7 @@ type claParams struct {
 	Endpoints   []epicv1.RemoteEndpoint
 }
 
-func unmarshalYAMLCLA(str string, cla *cluster.ClusterLoadAssignment) error {
+func unmarshalYAMLCLA(str string, cla *endpoint.ClusterLoadAssignment) error {
 	b, err := yaml.YAMLToJSON([]byte(str))
 	if err != nil {
 		return fmt.Errorf("Error converting yaml to json: '%s'", err)
@@ -64,7 +64,7 @@ func serviceToCLAs(service *epicv1.LoadBalancer, reps []epicv1.RemoteEndpoint) (
 	}
 
 	for i, clName := range service.Spec.UpstreamClusters {
-		cla := cluster.ClusterLoadAssignment{}
+		cla := endpoint.ClusterLoadAssignment{}
 
 		// Give the Template its parameters and execute it.
 		doc := bytes.Buffer{}
@@ -104,15 +104,15 @@ func repsForCluster(reps []epicv1.RemoteEndpoint, cluster string) []epicv1.Remot
 }
 
 // ServiceToSnapshot translates one of our epicv1.LoadBalancers and its
-// reps into an xDS cachev2.Snapshot. The Snapshot contains only the
+// reps into an xDS cache.Snapshot. The Snapshot contains only the
 // endpoints.
-func ServiceToSnapshot(version int, service *epicv1.LoadBalancer, reps []epicv1.RemoteEndpoint) (cachev2.Snapshot, error) {
+func ServiceToSnapshot(version int, service *epicv1.LoadBalancer, reps []epicv1.RemoteEndpoint) (cache.Snapshot, error) {
 	clas, err := serviceToCLAs(service, reps)
 	if err != nil {
-		return cachev2.Snapshot{}, err
+		return cache.Snapshot{}, err
 	}
 
-	return cachev2.NewSnapshot(
+	return cache.NewSnapshot(
 		strconv.Itoa(version),
 		clas,               // endpoints
 		[]types.Resource{}, // clusters

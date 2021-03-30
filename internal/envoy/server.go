@@ -24,29 +24,30 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	endpointv2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	discoverygrpc "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
-	serverv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
+	discoverygrpc "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
+	endpoint "github.com/envoyproxy/go-control-plane/envoy/service/endpoint/v3"
+	runtime "github.com/envoyproxy/go-control-plane/envoy/service/runtime/v3"
+	server "github.com/envoyproxy/go-control-plane/pkg/server/v3"
 )
 
 const (
+	// The gRPC golang library sets a very small upper bound for the
+	// number of gRPC/h2 streams over a single TCP connection. If a
+	// proxy multiplexes requests to the management server over a single
+	// connection, then it might lead to availability problems.
 	grpcMaxConcurrentStreams = 1000000
 )
 
-func registerServer(grpcServer *grpc.Server, server serverv2.Server) {
+func registerServer(grpcServer *grpc.Server, xDSServer server.Server) {
 	// register services
-	endpointv2.RegisterEndpointDiscoveryServiceServer(grpcServer, server)
-	discoverygrpc.RegisterAggregatedDiscoveryServiceServer(grpcServer, server)
-	discoverygrpc.RegisterRuntimeDiscoveryServiceServer(grpcServer, server)
+	endpoint.RegisterEndpointDiscoveryServiceServer(grpcServer, xDSServer)
+	discoverygrpc.RegisterAggregatedDiscoveryServiceServer(grpcServer, xDSServer)
+	runtime.RegisterRuntimeDiscoveryServiceServer(grpcServer, xDSServer)
 }
 
-// starts an xDS server on the given port
-func runServer(ctx context.Context, srv2 serverv2.Server, port uint, tlsConfig *tls.Config) {
+// runServer starts "xDSServer" on "port".
+func runServer(ctx context.Context, xDSServer server.Server, port uint, tlsConfig *tls.Config) {
 	grpcServer := grpc.NewServer(
-		// gRPC golang library sets a very small upper bound for the
-		// number gRPC/h2 streams over a single TCP connection. If a proxy
-		// multiplexes requests over a single connection to the management
-		// server, then it might lead to availability problems.
 		grpc.MaxConcurrentStreams(grpcMaxConcurrentStreams),
 		grpc.Creds(credentials.NewTLS(tlsConfig)),
 	)
@@ -56,7 +57,7 @@ func runServer(ctx context.Context, srv2 serverv2.Server, port uint, tlsConfig *
 		log.Fatal(err)
 	}
 
-	registerServer(grpcServer, srv2)
+	registerServer(grpcServer, xDSServer)
 
 	log.Printf("management server listening on %d\n", port)
 	if err = grpcServer.Serve(lis); err != nil {
