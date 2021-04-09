@@ -2,20 +2,20 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	epicv1 "gitlab.com/acnodal/epic/resource-model/api/v1"
 )
 
 const (
 	// name of our custom finalizer
-	epFinalizerName = "remoteendpoint-finalizer.xds-controller.acnodal.io"
+	epFinalizerNameBase = "rep.eds.epic.acnodal.io"
 )
 
 // LoadBalancerCallbacks are how this controller notifies the control
@@ -38,7 +38,7 @@ type RemoteEndpointReconciler struct {
 func (r *RemoteEndpointReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	done := ctrl.Result{Requeue: false}
 	l := r.Log.WithValues("endpoint", req.NamespacedName)
-
+	nsFinalizerName := fmt.Sprintf("%s.%s", req.Namespace, epFinalizerNameBase)
 	l.Info("reconciling")
 
 	// get the object that caused the event
@@ -55,21 +55,14 @@ func (r *RemoteEndpointReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		// This endpoint is marked to be deleted. Remove our finalizer
 		// before we do anything else to ensure that we don't block the
 		// endpoint CR from being deleted.
-		if controllerutil.ContainsFinalizer(rep, epFinalizerName) {
-			// remove our finalizer from the list and update the object
-			controllerutil.RemoveFinalizer(rep, epFinalizerName)
-			if err := r.Update(ctx, rep); err != nil {
-				return done, err
-			}
+		if err := removeFinalizer(ctx, r.Client, rep, nsFinalizerName); err != nil {
+			return done, err
 		}
 	} else {
 		// The object is not being deleted, so if it does not have our
 		// finalizer, then add it and update the object.
-		if !controllerutil.ContainsFinalizer(rep, epFinalizerName) {
-			controllerutil.AddFinalizer(rep, epFinalizerName)
-			if err := r.Update(ctx, rep); err != nil {
-				return done, err
-			}
+		if err := addFinalizer(ctx, r.Client, rep, nsFinalizerName); err != nil {
+			return done, err
 		}
 	}
 
