@@ -7,12 +7,11 @@ import (
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	epicv1 "gitlab.com/acnodal/epic/resource-model/api/v1"
+	"gitlab.com/acnodal/epic/resource-model/controllers"
 )
 
 const (
@@ -52,7 +51,7 @@ func (r *LoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		// This LB is marked to be deleted. Remove our finalizer before we
 		// do anything else to ensure that we don't block the LB CR from
 		// being deleted.
-		if err := removeFinalizer(ctx, r.Client, lb, nsFinalizerName); err != nil {
+		if err := controllers.RemoveFinalizer(ctx, r.Client, lb, nsFinalizerName); err != nil {
 			return done, err
 		}
 
@@ -63,7 +62,7 @@ func (r *LoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// The LB is not being deleted, so if it does not have our
 	// finalizer, then add it and update the object.
-	if err := addFinalizer(ctx, r.Client, lb, nsFinalizerName); err != nil {
+	if err := controllers.AddFinalizer(ctx, r.Client, lb, nsFinalizerName); err != nil {
 		return done, err
 	}
 
@@ -97,67 +96,6 @@ func listActiveLBEndpoints(cl client.Client, lb *epicv1.LoadBalancer) ([]epicv1.
 	}
 
 	return activeEPs, err
-}
-
-// Safely adds "finalizerName" to the finalizers list of "obj". See
-// https://pkg.go.dev/k8s.io/client-go/util/retry#RetryOnConflict for
-// more info.
-func addFinalizer(ctx context.Context, cl client.Client, obj client.Object, finalizerName string) error {
-	if !controllerutil.ContainsFinalizer(obj, finalizerName) {
-		key := client.ObjectKey{Namespace: obj.GetNamespace(), Name: obj.GetName()}
-
-		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			// Fetch the resource here; you need to refetch it on every try,
-			// since if you got a conflict on the last update attempt then
-			// you need to get the current version before making your own
-			// changes.
-			if err := cl.Get(ctx, key, obj); err != nil {
-				return err
-			}
-
-			// Add our finalizer
-			controllerutil.AddFinalizer(obj, finalizerName)
-
-			// Try to update
-			return cl.Update(ctx, obj)
-		})
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// Safely removes "finalizerName" from the finalizers list of
-// "obj". See
-// https://pkg.go.dev/k8s.io/client-go/util/retry#RetryOnConflict for
-// more info.
-func removeFinalizer(ctx context.Context, cl client.Client, obj client.Object, finalizerName string) error {
-	if controllerutil.ContainsFinalizer(obj, finalizerName) {
-		key := client.ObjectKey{Namespace: obj.GetNamespace(), Name: obj.GetName()}
-
-		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			// Fetch the resource here; you need to refetch it on every try,
-			// since if you got a conflict on the last update attempt then
-			// you need to get the current version before making your own
-			// changes.
-			if err := cl.Get(ctx, key, obj); err != nil {
-				return err
-			}
-
-			// Remove our finalizer
-			controllerutil.RemoveFinalizer(obj, finalizerName)
-
-			// Try to update
-			return cl.Update(ctx, obj)
-		})
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // SetupWithManager sets up this reconciler to be managed.

@@ -11,6 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	epicv1 "gitlab.com/acnodal/epic/resource-model/api/v1"
+	"gitlab.com/acnodal/epic/resource-model/controllers"
 )
 
 const (
@@ -55,13 +56,13 @@ func (r *RemoteEndpointReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		// This endpoint is marked to be deleted. Remove our finalizer
 		// before we do anything else to ensure that we don't block the
 		// endpoint CR from being deleted.
-		if err := removeFinalizer(ctx, r.Client, rep, nsFinalizerName); err != nil {
+		if err := controllers.RemoveFinalizer(ctx, r.Client, rep, nsFinalizerName); err != nil {
 			return done, err
 		}
 	} else {
 		// The object is not being deleted, so if it does not have our
 		// finalizer, then add it and update the object.
-		if err := addFinalizer(ctx, r.Client, rep, nsFinalizerName); err != nil {
+		if err := controllers.AddFinalizer(ctx, r.Client, rep, nsFinalizerName); err != nil {
 			return done, err
 		}
 	}
