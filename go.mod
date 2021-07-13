@@ -9,7 +9,7 @@ require (
 	github.com/golang/protobuf v1.4.3
 	github.com/onsi/ginkgo v1.14.2
 	github.com/onsi/gomega v1.10.2
-	gitlab.com/acnodal/epic/resource-model v0.9.10
+	gitlab.com/acnodal/epic/resource-model v0.9.11
 	google.golang.org/grpc v1.30.0
 	k8s.io/api v0.20.2
 	k8s.io/apimachinery v0.20.2
