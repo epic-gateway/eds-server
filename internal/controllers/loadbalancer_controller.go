@@ -56,7 +56,7 @@ func (r *LoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 
 		// Tell the control plane that the LB is being deleted
-		r.Callbacks.LoadBalancerDeleted(lb.Namespace, lb.Name)
+		r.Callbacks.DeleteNode(lb.Namespace, lb.Name)
 		return done, nil
 	}
 

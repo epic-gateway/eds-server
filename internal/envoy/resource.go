@@ -48,29 +48,33 @@ func unmarshalYAMLCLA(str string, cla *endpoint.ClusterLoadAssignment) error {
 	return nil
 }
 
-// serviceToCLAs translates our LoadBalancer service CR into an Envoy
+// repsToCLAs translates our LoadBalancer service CR into an Envoy
 // ClusterLoadAssignment, using a template in the LB Spec.
-func serviceToCLAs(service *epicv1.LoadBalancer, reps []epicv1.RemoteEndpoint) ([]types.Resource, error) {
+func repsToCLAs(templateText string, reps []epicv1.RemoteEndpoint) ([]types.Resource, error) {
 	var (
 		err  error
-		clas []types.Resource = make([]types.Resource, len(service.Spec.UpstreamClusters))
+		clas []types.Resource = []types.Resource{}
 	)
 
 	// Get the Template ready to execute.
 	tmpl := &template.Template{}
-	tmplText := service.Spec.EnvoyTemplate.EnvoyResources.Endpoints[0].Value
-	if tmpl, err = template.New("cla").Funcs(funcMap).Parse(tmplText); err != nil {
+	if tmpl, err = template.New("cla").Funcs(funcMap).Parse(templateText); err != nil {
 		return clas, err
 	}
 
-	for i, clName := range service.Spec.UpstreamClusters {
+	// Scan the reps to find the set of clusters that they reference.
+	clusters := map[string]struct{}{}
+	for _, rep := range reps {
+		clusters[rep.Spec.Cluster] = struct{}{}
+	}
+
+	for clName := range clusters {
 		cla := endpoint.ClusterLoadAssignment{}
 
 		// Give the Template its parameters and execute it.
 		doc := bytes.Buffer{}
 		if err := tmpl.Execute(&doc, claParams{
 			ClusterName: clName,
-			ServiceName: service.Name,
 			Endpoints:   repsForCluster(reps, clName),
 		}); err != nil {
 			return clas, err
@@ -83,7 +87,7 @@ func serviceToCLAs(service *epicv1.LoadBalancer, reps []epicv1.RemoteEndpoint) (
 			return clas, err
 		}
 
-		clas[i] = &cla
+		clas = append(clas, &cla)
 	}
 
 	return clas, nil
@@ -103,11 +107,11 @@ func repsForCluster(reps []epicv1.RemoteEndpoint, cluster string) []epicv1.Remot
 	return clusterReps
 }
 
-// ServiceToSnapshot translates one of our epicv1.LoadBalancers and its
+// RepsToSnapshot translates one of our epicv1.LoadBalancers and its
 // reps into an xDS cache.Snapshot. The Snapshot contains only the
 // endpoints.
-func ServiceToSnapshot(version int, service *epicv1.LoadBalancer, reps []epicv1.RemoteEndpoint) (cache.Snapshot, error) {
-	clas, err := serviceToCLAs(service, reps)
+func RepsToSnapshot(version int, template string, reps []epicv1.RemoteEndpoint) (cache.Snapshot, error) {
+	clas, err := repsToCLAs(template, reps)
 	if err != nil {
 		return cache.Snapshot{}, err
 	}

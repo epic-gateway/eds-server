@@ -13,6 +13,7 @@ import (
 	server "github.com/envoyproxy/go-control-plane/pkg/server/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/test/v3"
 	"github.com/go-logr/logr"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -44,15 +45,38 @@ func UpdateModel(nodeID string, service *epicv1.LoadBalancer, endpoints []epicv1
 	defer updateLock.Unlock()
 	updateLock.Lock()
 
-	version, err := allocateSnapshotVersion(context.TODO(), c, service)
+	version, err := allocateSnapshotVersion(context.TODO(), c, service.Namespace, service.Labels[epicv1.OwningLBServiceGroupLabel], service.Name)
 	if err != nil {
 		return err
 	}
 
-	snapshot, err := ServiceToSnapshot(version, service, endpoints)
+	snapshot, err := RepsToSnapshot(version, service.Spec.EnvoyTemplate.EnvoyResources.Endpoints[0].Value, endpoints)
 	if err != nil {
 		return err
 	}
+	return updateSnapshot(nodeID, snapshot)
+}
+
+// UpdateProxyModel updates Envoy's model with new info about this GWProxy.
+func UpdateProxyModel(nodeID string, proxy *epicv1.GWProxy) error {
+	// FIXME: we should probably have the controllers provide the
+	// context, and maybe the client.
+	var ctx = context.TODO()
+
+	defer updateLock.Unlock()
+	updateLock.Lock()
+
+	version, err := allocateSnapshotVersion(ctx, c, proxy.Namespace, proxy.Labels[epicv1.OwningLBServiceGroupLabel], proxy.Name)
+	if err != nil {
+		return err
+	}
+
+	endpoints, err := activeProxyEndpoints(ctx, c, proxy)
+	snapshot, err := RepsToSnapshot(version, proxy.Spec.EnvoyTemplate.EnvoyResources.Endpoints[0].Value, endpoints)
+	if err != nil {
+		return err
+	}
+
 	return updateSnapshot(nodeID, snapshot)
 }
 
@@ -66,6 +90,51 @@ func updateSnapshot(nodeID string, snapshot cache.Snapshot) error {
 	}
 
 	return nil
+}
+
+// activeProxyEndpoints lists endpoints that belong to the proxy and
+// that are active, i.e., not in the process of being deleted.
+func activeProxyEndpoints(ctx context.Context, cl client.Client, proxy *epicv1.GWProxy) ([]epicv1.RemoteEndpoint, error) {
+	activeEPs := []epicv1.RemoteEndpoint{}
+	listOps := client.ListOptions{Namespace: proxy.Namespace}
+	routes := epicv1.GWRouteList{}
+	err := cl.List(ctx, &routes, &listOps)
+	if err != nil {
+		return activeEPs, err
+	}
+	slices := epicv1.GWEndpointSliceList{}
+	err = cl.List(ctx, &slices, &listOps)
+	if err != nil {
+		return activeEPs, err
+	}
+
+	for _, route := range routes.Items {
+		for _, rule := range route.Spec.HTTP.Rules {
+			for _, ref := range rule.BackendRefs {
+				clusterName := string(ref.Name)
+				for _, slice := range slices.Items {
+					if slice.Spec.ParentRef.UID == clusterName && slice.ObjectMeta.DeletionTimestamp.IsZero() {
+						for _, endpoint := range slice.Spec.Endpoints {
+							for _, address := range endpoint.Addresses {
+								activeEPs = append(activeEPs, epicv1.RemoteEndpoint{
+									Spec: epicv1.RemoteEndpointSpec{
+										Cluster: clusterName,
+										Address: address,
+										Port: v1.EndpointPort{
+											Port:     *slice.Spec.Ports[0].Port,
+											Protocol: *slice.Spec.Ports[0].Protocol,
+										},
+									},
+								})
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return activeEPs, err
 }
 
 // ClearModel removes a model from the cache.
@@ -109,10 +178,17 @@ func LaunchControlPlane(client client.Client, log logr.Logger, xDSPort uint, deb
 // to this process. If this call succeeds (i.e., error is nil) then
 // lb.Status.ProxySnapshotVersion will be unique to this instance of
 // lb.
-func allocateSnapshotVersion(ctx context.Context, cl client.Client, lb *epicv1.LoadBalancer) (version int, err error) {
+func allocateSnapshotVersion(ctx context.Context, cl client.Client, ns string, lbsgName string, lbName string) (version int, err error) {
 	tries := 3
 	for err = fmt.Errorf(""); err != nil && tries > 0; tries-- {
-		version, err = nextSnapshotVersion(ctx, cl, lb)
+		// get the SG
+		sg := epicv1.LBServiceGroup{}
+		err = cl.Get(ctx, types.NamespacedName{Namespace: ns, Name: lbsgName}, &sg)
+		if err != nil {
+			return -1, err
+		}
+
+		version, err = nextSnapshotVersion(ctx, cl, sg, lbName)
 	}
 	return version, err
 }
@@ -125,14 +201,7 @@ func allocateSnapshotVersion(ctx context.Context, cl client.Client, lb *epicv1.L
 //
 // This function doesn't retry so if there's a collision with some
 // other process the caller needs to retry.
-func nextSnapshotVersion(ctx context.Context, cl client.Client, lb *epicv1.LoadBalancer) (version int, err error) {
-
-	// get the SG
-	sg := epicv1.LBServiceGroup{}
-	err = cl.Get(ctx, types.NamespacedName{Namespace: lb.Namespace, Name: lb.Labels[epicv1.OwningLBServiceGroupLabel]}, &sg)
-	if err != nil {
-		return -1, err
-	}
+func nextSnapshotVersion(ctx context.Context, cl client.Client, sg epicv1.LBServiceGroup, lb string) (version int, err error) {
 
 	// Initialize this SG's map (if necessary)
 	if versions := sg.Status.ProxySnapshotVersions; versions == nil {
@@ -140,16 +209,17 @@ func nextSnapshotVersion(ctx context.Context, cl client.Client, lb *epicv1.LoadB
 	}
 
 	// Initialize or increment this LB's snapshot version
-	version, exists := sg.Status.ProxySnapshotVersions[lb.Name]
+	version, exists := sg.Status.ProxySnapshotVersions[lb]
 	if !exists {
 		version = 0
 	} else {
 		version++
 	}
-	sg.Status.ProxySnapshotVersions[lb.Name] = version
+	sg.Status.ProxySnapshotVersions[lb] = version
 
 	return version, cl.Status().Update(ctx, &sg)
 }
+
 func loadCertificate(directory string, logger logr.Logger) tls.Certificate {
 	certificate, err := tls.LoadX509KeyPair(
 		fmt.Sprintf("%s/%s", directory, tlsCertificateFile),

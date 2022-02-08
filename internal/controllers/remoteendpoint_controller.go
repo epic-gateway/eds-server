@@ -19,13 +19,6 @@ const (
 	epFinalizerNameBase = "rep.eds.epic.acnodal.io"
 )
 
-// LoadBalancerCallbacks are how this controller notifies the control
-// plane of object changes.
-type LoadBalancerCallbacks interface {
-	EndpointChanged(*epicv1.LoadBalancer, []epicv1.RemoteEndpoint) error
-	LoadBalancerDeleted(string, string)
-}
-
 // RemoteEndpointReconciler reconciles a Endpoint object
 type RemoteEndpointReconciler struct {
 	client.Client

@@ -46,9 +46,18 @@ func init() {
 type callbacks struct {
 }
 
-func (cb callbacks) LoadBalancerDeleted(namespace string, LBName string) {
-	nodeID := namespace + "." + LBName
+func (cb callbacks) DeleteNode(namespace string, name string) {
+	nodeID := namespace + "." + name
 	envoy.ClearModel(nodeID)
+}
+
+func (cb callbacks) UpdateProxy(proxy *epicv1.GWProxy) error {
+	nodeID := proxy.Namespace + "." + proxy.Name
+	setupLog.Info("nodeID version changed", "nodeid", nodeID, "service", proxy)
+	if err := envoy.UpdateProxyModel(nodeID, proxy); err != nil {
+		setupLog.Error(err, "update model failed")
+	}
+	return nil
 }
 
 func (cb callbacks) EndpointChanged(service *epicv1.LoadBalancer, endpoints []epicv1.RemoteEndpoint) error {
@@ -86,6 +95,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Loadbalancer controllers.
 	if err = (&controllers.LoadBalancerReconciler{
 		Client:        mgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("LoadBalancer"),
@@ -102,6 +112,26 @@ func main() {
 		RuntimeScheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Endpoint")
+		os.Exit(1)
+	}
+
+	// Gateway controllers.
+	if err = (&controllers.GWProxyReconciler{
+		Callbacks: callbacks{},
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "GWProxy")
+		os.Exit(1)
+	}
+	if err = (&controllers.GWRouteReconciler{
+		Callbacks: callbacks{},
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "GWRoute")
+		os.Exit(1)
+	}
+	if err = (&controllers.GWEndpointSliceReconciler{
+		Callbacks: callbacks{},
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "GWEndpointSlice")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
