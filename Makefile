@@ -5,7 +5,6 @@ REGISTRY_IMAGE ?= ${REPO}/${PREFIX}
 SUFFIX = ${USER}-dev
 
 TAG ?= ${REGISTRY_IMAGE}:${SUFFIX}
-DOCKERFILE=build/package/Dockerfile
 
 ##@ Default Goal
 .PHONY: help
@@ -31,7 +30,7 @@ run: ## Run the service using "go run" (KUBECONFIG needs to be set)
 	go run ./main.go --debug
 
 image:	## Build the Docker image
-	docker build --build-arg=GITLAB_USER --build-arg=GITLAB_PASSWORD --file=${DOCKERFILE} --tag=${TAG} .
+	docker build --build-arg=GITLAB_USER --build-arg=GITLAB_PASSWORD --tag=${TAG} .
 
 install:	image ## Push the image to the repo
 	docker push ${TAG}
