@@ -58,20 +58,16 @@ func UpdateModel(nodeID string, service *epicv1.LoadBalancer, endpoints []epicv1
 }
 
 // UpdateProxyModel updates Envoy's model with new info about this GWProxy.
-func UpdateProxyModel(nodeID string, proxy *epicv1.GWProxy) error {
-	// FIXME: we should probably have the controllers provide the
-	// context, and maybe the client.
-	var ctx = context.TODO()
-
+func UpdateProxyModel(ctx context.Context, cl client.Client, nodeID string, proxy *epicv1.GWProxy) error {
 	defer updateLock.Unlock()
 	updateLock.Lock()
 
-	version, err := allocateSnapshotVersion(ctx, c, proxy.Namespace, proxy.Labels[epicv1.OwningLBServiceGroupLabel], proxy.Name)
+	version, err := allocateSnapshotVersion(ctx, cl, proxy.Namespace, proxy.Labels[epicv1.OwningLBServiceGroupLabel], proxy.Name)
 	if err != nil {
 		return err
 	}
 
-	endpoints, err := activeProxyEndpoints(ctx, c, proxy)
+	endpoints, err := activeProxyEndpoints(ctx, cl, proxy)
 	snapshot, err := RepsToSnapshot(version, proxy.Spec.EnvoyTemplate.EnvoyResources.Endpoints[0].Value, endpoints)
 	if err != nil {
 		return err

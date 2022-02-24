@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 
@@ -10,6 +11,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/utils/env"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"acnodal.io/epic/eds-server/internal/controllers"
@@ -51,10 +53,10 @@ func (cb callbacks) DeleteNode(namespace string, name string) {
 	envoy.ClearModel(nodeID)
 }
 
-func (cb callbacks) UpdateProxy(proxy *epicv1.GWProxy) error {
+func (cb callbacks) UpdateProxy(ctx context.Context, cl client.Client, proxy *epicv1.GWProxy) error {
 	nodeID := proxy.Namespace + "." + proxy.Name
-	setupLog.Info("nodeID version changed", "nodeid", nodeID, "service", proxy)
-	if err := envoy.UpdateProxyModel(nodeID, proxy); err != nil {
+	setupLog.Info("nodeID version changed", "nodeid", nodeID, "service", proxy.Spec)
+	if err := envoy.UpdateProxyModel(ctx, cl, nodeID, proxy); err != nil {
 		setupLog.Error(err, "update model failed")
 	}
 	return nil

@@ -67,7 +67,7 @@ func (r *GWProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	// tell the control plane about the changed object
-	if err := r.Callbacks.UpdateProxy(&proxy); err != nil {
+	if err := r.Callbacks.UpdateProxy(ctx, r.client, &proxy); err != nil {
 		return done, err
 	}
 

@@ -84,7 +84,7 @@ func (r *GWEndpointSliceReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 			pl.Info("Can't get parent proxy")
 		} else {
 			// tell the control plane about the changed object
-			if err := r.Callbacks.UpdateProxy(&proxy); err != nil {
+			if err := r.Callbacks.UpdateProxy(ctx, r.client, &proxy); err != nil {
 				return done, err
 			}
 		}
