@@ -14,7 +14,7 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/test/v3"
 	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	epicv1 "gitlab.com/acnodal/epic/resource-model/api/v1"
@@ -176,48 +176,31 @@ func LaunchControlPlane(client client.Client, log logr.Logger, xDSPort uint, deb
 
 // allocateSnapshotVersion allocates a snapshot version that's unique
 // to this process. If this call succeeds (i.e., error is nil) then
-// lb.Status.ProxySnapshotVersion will be unique to this instance of
+// sg.Status.ProxySnapshotVersion will be unique to this instance of
 // lb.
-func allocateSnapshotVersion(ctx context.Context, cl client.Client, ns string, lbsgName string, lbName string) (version int, err error) {
-	tries := 3
-	for err = fmt.Errorf(""); err != nil && tries > 0; tries-- {
-		// get the SG
+func allocateSnapshotVersion(ctx context.Context, cl client.Client, ns string, sgName string, lbName string) (version int, err error) {
+	key := client.ObjectKey{Namespace: ns, Name: sgName}
+
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		sg := epicv1.LBServiceGroup{}
-		err = cl.Get(ctx, types.NamespacedName{Namespace: ns, Name: lbsgName}, &sg)
-		if err != nil {
-			return -1, err
+		if err := cl.Get(ctx, key, &sg); err != nil {
+			return err
 		}
 
-		version, err = nextSnapshotVersion(ctx, cl, sg, lbName)
-	}
-	return version, err
-}
+		// Initialize or increment this SG's snapshot version.
+		var exists bool
+		version, exists = sg.Status.ProxySnapshotVersions[lbName]
+		if !exists {
+			version = 0
+		} else {
+			version++
+		}
+		sg.Status.ProxySnapshotVersions[lbName] = version
 
-// nextSnapshotVersion gets the next LB snapshot version by doing a
-// read-modify-write cycle. It might be inefficient in terms of not
-// using all of the values that it allocates but it's safe because the
-// Update() will only succeed if the LB hasn't been modified since the
-// Get().
-//
-// This function doesn't retry so if there's a collision with some
-// other process the caller needs to retry.
-func nextSnapshotVersion(ctx context.Context, cl client.Client, sg epicv1.LBServiceGroup, lb string) (version int, err error) {
+		return cl.Status().Update(ctx, &sg)
+	})
 
-	// Initialize this SG's map (if necessary)
-	if versions := sg.Status.ProxySnapshotVersions; versions == nil {
-		sg.Status.ProxySnapshotVersions = map[string]int{}
-	}
-
-	// Initialize or increment this LB's snapshot version
-	version, exists := sg.Status.ProxySnapshotVersions[lb]
-	if !exists {
-		version = 0
-	} else {
-		version++
-	}
-	sg.Status.ProxySnapshotVersions[lb] = version
-
-	return version, cl.Status().Update(ctx, &sg)
+	return
 }
 
 func loadCertificate(directory string, logger logr.Logger) tls.Certificate {
