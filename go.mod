@@ -4,8 +4,10 @@ go 1.17
 
 replace github.com/3scale-ops/marin3r => gitlab.com/acnodal/epic/marin3r v0.9.1-epic7
 
+replace github.com/envoyproxy/go-control-plane => gitlab.com/acnodal/epic/go-control-plane v0.9.9-epic0
+
 require (
-	github.com/3scale-ops/marin3r v0.9.1 // indirect
+	github.com/3scale-ops/marin3r v0.9.1
 	github.com/envoyproxy/go-control-plane v0.9.9
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v0.4.0
