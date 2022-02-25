@@ -140,7 +140,7 @@ func main() {
 
 	// launch the Envoy xDS control plane in the background
 	setupLog.Info("starting xDS control plane")
-	go envoy.LaunchControlPlane(mgr.GetClient(), setupLog, xDSPort, xDSDebug)
+	go envoy.LaunchControlPlane(mgr.GetClient(), ctrl.Log.WithName("xds"), xDSPort, xDSDebug)
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

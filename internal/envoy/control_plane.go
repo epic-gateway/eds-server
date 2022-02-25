@@ -141,7 +141,7 @@ func ClearModel(nodeID string) {
 // LaunchControlPlane launches an xDS control plane in the
 // foreground. Note that this means that this function doesn't return.
 func LaunchControlPlane(client client.Client, log logr.Logger, xDSPort uint, debug bool) error {
-	l = Logger{Debug: debug}
+	l = Logger{Logger: log.WithName("cache"), Debug: debug}
 	c = client
 
 	// create a cache

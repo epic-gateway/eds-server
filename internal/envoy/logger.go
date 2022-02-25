@@ -15,36 +15,35 @@
 package envoy
 
 import (
-	"log"
+	"fmt"
+
+	"github.com/go-logr/logr"
 )
 
 // Logger is an example of a logger that implements pkg/log/Logger.
 // It logs to stdout.  If debug == false then Debugf() and Infof()
 // won't output anything.
 type Logger struct {
-	Debug bool
+	Logger logr.Logger
+	Debug  bool
 }
 
 // Debugf logs to stdout only if debug == true.
 func (logger Logger) Debugf(format string, args ...interface{}) {
-	if logger.Debug {
-		log.Printf(format+"\n", args...)
-	}
+	logger.Logger.V(1).Info(fmt.Sprintf(format, args...))
 }
 
 // Infof logs to stdout only if debug == true.
 func (logger Logger) Infof(format string, args ...interface{}) {
-	if logger.Debug {
-		log.Printf(format+"\n", args...)
-	}
+	logger.Logger.Info(fmt.Sprintf(format, args...))
 }
 
 // Warnf logs to stdout always.
 func (logger Logger) Warnf(format string, args ...interface{}) {
-	log.Printf(format+"\n", args...)
+	logger.Logger.Info(fmt.Sprintf(format, args...))
 }
 
 // Errorf logs to stdout always.
 func (logger Logger) Errorf(format string, args ...interface{}) {
-	log.Printf(format+"\n", args...)
+	logger.Logger.Error(fmt.Errorf("xds cache error"), fmt.Sprintf(format, args...))
 }
