@@ -9,9 +9,8 @@ import (
 	"os"
 	"sync"
 
-	cache "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
-	server "github.com/envoyproxy/go-control-plane/pkg/server/v3"
-	"github.com/envoyproxy/go-control-plane/pkg/test/v3"
+	cache_v3 "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
+	server_v3 "github.com/envoyproxy/go-control-plane/pkg/server/v3"
 	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/retry"
@@ -28,7 +27,7 @@ const (
 )
 
 var (
-	snapshotCache cache.SnapshotCache
+	snapshotCache cache_v3.SnapshotCache
 	l             Logger
 	c             client.Client
 
@@ -76,16 +75,9 @@ func UpdateProxyModel(ctx context.Context, cl client.Client, nodeID string, prox
 	return updateSnapshot(nodeID, snapshot)
 }
 
-func updateSnapshot(nodeID string, snapshot cache.Snapshot) error {
-	l.Debugf("will serve snapshot %#v", snapshot)
-
+func updateSnapshot(nodeID string, snapshot cache_v3.Snapshot) error {
 	// add the snapshot to the cache
-	if err := snapshotCache.SetSnapshot(nodeID, snapshot); err != nil {
-		l.Errorf("snapshot error %q for %+v", err, snapshot)
-		return err
-	}
-
-	return nil
+	return snapshotCache.SetSnapshot(nodeID, snapshot)
 }
 
 // activeProxyEndpoints lists endpoints that belong to the proxy and
@@ -143,14 +135,18 @@ func ClearModel(nodeID string) {
 func LaunchControlPlane(client client.Client, log logr.Logger, xDSPort uint, debug bool) error {
 	l = Logger{Logger: log.WithName("cache"), Debug: debug}
 	c = client
+	callbacksV3 := &Callbacks{
+		Logger: log.WithName("server"),
+	}
 
 	// create a cache
-	snapshotCache = cache.NewSnapshotCache(false, cache.IDHash{}, l)
-	cb := &test.Callbacks{Debug: debug}
-	srvr := server.NewServer(context.Background(), snapshotCache, cb)
+	snapshotCache = cache_v3.NewSnapshotCache(false, cache_v3.IDHash{}, l)
+	srvr := server_v3.NewServer(context.Background(), snapshotCache, callbacksV3)
+
+	l.Infof("Control plane launching on port %d, debug=%t", xDSPort, debug)
 
 	// run the xDS server
-	runServer(context.Background(),
+	return runServer(context.Background(),
 		srvr,
 		xDSPort,
 		&tls.Config{
@@ -166,8 +162,6 @@ func LaunchControlPlane(client client.Client, log logr.Logger, xDSPort uint, deb
 			ClientAuth:   tls.RequireAndVerifyClientCert,
 			ClientCAs:    loadCA(tlsCACertificatePath, log),
 		})
-
-	return nil
 }
 
 // allocateSnapshotVersion allocates a snapshot version that's unique

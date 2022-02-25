@@ -46,7 +46,7 @@ func registerServer(grpcServer *grpc.Server, xDSServer server.Server) {
 }
 
 // runServer starts "xDSServer" on "port".
-func runServer(ctx context.Context, xDSServer server.Server, port uint, tlsConfig *tls.Config) {
+func runServer(ctx context.Context, xDSServer server.Server, port uint, tlsConfig *tls.Config) error {
 	grpcServer := grpc.NewServer(
 		grpc.MaxConcurrentStreams(grpcMaxConcurrentStreams),
 		grpc.Creds(credentials.NewTLS(tlsConfig)),
@@ -59,8 +59,5 @@ func runServer(ctx context.Context, xDSServer server.Server, port uint, tlsConfi
 
 	registerServer(grpcServer, xDSServer)
 
-	log.Printf("management server listening on %d\n", port)
-	if err = grpcServer.Serve(lis); err != nil {
-		log.Println(err)
-	}
+	return grpcServer.Serve(lis)
 }

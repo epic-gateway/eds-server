@@ -55,7 +55,6 @@ func (cb callbacks) DeleteNode(namespace string, name string) {
 
 func (cb callbacks) UpdateProxy(ctx context.Context, cl client.Client, proxy *epicv1.GWProxy) error {
 	nodeID := proxy.Namespace + "." + proxy.Name
-	setupLog.Info("nodeID version changed", "nodeid", nodeID, "service", proxy.Spec)
 	if err := envoy.UpdateProxyModel(ctx, cl, nodeID, proxy); err != nil {
 		setupLog.Error(err, "update model failed")
 	}
@@ -78,11 +77,11 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	flag.BoolVar(&xDSDebug, "debug", false, "Enable xds debug logging")
+	flag.BoolVar(&xDSDebug, "debug", true, "Enable xds debug logging")
 	flag.UintVar(&xDSPort, "xds-port", 18000, "xDS management server port")
 	flag.Parse()
 
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	ctrl.SetLogger(zap.New(zap.UseDevMode(xDSDebug)))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Namespace:          env.GetString(watchNamespaceEnvVar, ""),
