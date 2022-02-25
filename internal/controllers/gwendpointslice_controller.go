@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	epicv1 "gitlab.com/acnodal/epic/resource-model/api/v1"
 	"gitlab.com/acnodal/epic/resource-model/controllers"
@@ -26,7 +26,6 @@ type GWEndpointSliceReconciler struct {
 	Callbacks RouteCallbacks
 
 	client        client.Client
-	log           logr.Logger
 	runtimeScheme *runtime.Scheme
 }
 
@@ -34,7 +33,7 @@ type GWEndpointSliceReconciler struct {
 // controller-runtime and figures out what to do with them.
 func (r *GWEndpointSliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	done := ctrl.Result{Requeue: false}
-	l := r.log.WithValues("slice", req.NamespacedName)
+	l := log.FromContext(ctx)
 	nsFinalizerName := fmt.Sprintf("%s.%s", req.Namespace, sliceFinalizerNameBase)
 	l.Info("reconciling")
 
@@ -122,7 +121,6 @@ func referencingProxies(ctx context.Context, cl client.Client, namespace string,
 // SetupWithManager sets up this reconciler to be managed.
 func (r *GWEndpointSliceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.client = mgr.GetClient()
-	r.log = ctrl.Log.WithName("GWEndpointSliceController")
 	r.runtimeScheme = mgr.GetScheme()
 
 	return ctrl.NewControllerManagedBy(mgr).

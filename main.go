@@ -99,7 +99,6 @@ func main() {
 	// Loadbalancer controllers.
 	if err = (&controllers.LoadBalancerReconciler{
 		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("LoadBalancer"),
 		Callbacks:     callbacks{},
 		RuntimeScheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
@@ -108,7 +107,6 @@ func main() {
 	}
 	if err = (&controllers.RemoteEndpointReconciler{
 		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("Endpoint"),
 		Callbacks:     callbacks{},
 		RuntimeScheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {

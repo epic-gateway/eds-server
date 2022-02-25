@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	epicv1 "gitlab.com/acnodal/epic/resource-model/api/v1"
 	"gitlab.com/acnodal/epic/resource-model/controllers"
@@ -25,7 +25,6 @@ type GWProxyReconciler struct {
 	Callbacks RouteCallbacks
 
 	client        client.Client
-	log           logr.Logger
 	runtimeScheme *runtime.Scheme
 }
 
@@ -33,7 +32,7 @@ type GWProxyReconciler struct {
 // controller-runtime and figures out what to do with them.
 func (r *GWProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	done := ctrl.Result{Requeue: false}
-	l := r.log.WithValues("proxy", req.NamespacedName)
+	l := log.FromContext(ctx)
 	nsFinalizerName := fmt.Sprintf("%s.%s", req.Namespace, proxyFinalizerNameBase)
 	l.Info("reconciling")
 
@@ -77,7 +76,6 @@ func (r *GWProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 // SetupWithManager sets up this reconciler to be managed.
 func (r *GWProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.client = mgr.GetClient()
-	r.log = ctrl.Log.WithName("GWProxyController")
 	r.runtimeScheme = mgr.GetScheme()
 
 	return ctrl.NewControllerManagedBy(mgr).

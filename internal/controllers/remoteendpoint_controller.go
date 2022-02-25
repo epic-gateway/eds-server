@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	epicv1 "gitlab.com/acnodal/epic/resource-model/api/v1"
 	"gitlab.com/acnodal/epic/resource-model/controllers"
@@ -22,7 +22,6 @@ const (
 // RemoteEndpointReconciler reconciles a Endpoint object
 type RemoteEndpointReconciler struct {
 	client.Client
-	Log           logr.Logger
 	Callbacks     LoadBalancerCallbacks
 	RuntimeScheme *runtime.Scheme
 }
@@ -31,7 +30,7 @@ type RemoteEndpointReconciler struct {
 // controller-runtime and figures out what to do with them.
 func (r *RemoteEndpointReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	done := ctrl.Result{Requeue: false}
-	l := r.Log.WithValues("endpoint", req.NamespacedName)
+	l := log.FromContext(ctx)
 	nsFinalizerName := fmt.Sprintf("%s.%s", req.Namespace, epFinalizerNameBase)
 	l.Info("reconciling")
 
