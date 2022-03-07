@@ -177,6 +177,11 @@ func allocateSnapshotVersion(ctx context.Context, cl client.Client, ns string, s
 			return err
 		}
 
+		// Initialize the SG's snapshot version map
+		if sg.Status.ProxySnapshotVersions == nil {
+			sg.Status.ProxySnapshotVersions = map[string]int{}
+		}
+
 		// Initialize or increment this SG's snapshot version.
 		var exists bool
 		version, exists = sg.Status.ProxySnapshotVersions[lbName]
