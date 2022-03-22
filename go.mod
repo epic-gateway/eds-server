@@ -14,7 +14,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.14.0
-	gitlab.com/acnodal/epic/resource-model v0.18.0-dev8
+	gitlab.com/acnodal/epic/resource-model v0.26.0
 	google.golang.org/grpc v1.38.0
 	k8s.io/api v0.22.1
 	k8s.io/apimachinery v0.22.1
