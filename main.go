@@ -61,15 +61,6 @@ func (cb callbacks) UpdateProxy(ctx context.Context, cl client.Client, proxy *ep
 	return nil
 }
 
-func (cb callbacks) EndpointChanged(service *epicv1.LoadBalancer, endpoints []epicv1.RemoteEndpoint) error {
-	nodeID := service.Namespace + "." + service.Name
-	setupLog.Info("nodeID version changed", "nodeid", nodeID, "service", service, "endpoints", endpoints)
-	if err := envoy.UpdateModel(nodeID, service, endpoints); err != nil {
-		setupLog.Error(err, "update model failed")
-	}
-	return nil
-}
-
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
@@ -93,24 +84,6 @@ func main() {
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
-	}
-
-	// Loadbalancer controllers.
-	if err = (&controllers.LoadBalancerReconciler{
-		Client:        mgr.GetClient(),
-		Callbacks:     callbacks{},
-		RuntimeScheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "LoadBalancer")
-		os.Exit(1)
-	}
-	if err = (&controllers.RemoteEndpointReconciler{
-		Client:        mgr.GetClient(),
-		Callbacks:     callbacks{},
-		RuntimeScheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Endpoint")
 		os.Exit(1)
 	}
 
