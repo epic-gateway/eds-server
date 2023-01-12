@@ -39,6 +39,23 @@ var (
 	updateLock sync.Mutex
 )
 
+// UpdateModel updates Envoy's model with new info about this LB.
+func UpdateModel(nodeID string, service *epicv1.LoadBalancer, endpoints []epicv1.RemoteEndpoint) error {
+	defer updateLock.Unlock()
+	updateLock.Lock()
+
+	version, err := allocateSnapshotVersion(context.TODO(), c, service.Namespace, service.Labels[epicv1.OwningLBServiceGroupLabel], service.Name)
+	if err != nil {
+		return err
+	}
+
+	snapshot, err := RepsToSnapshot(version, service.Spec.EnvoyTemplate.EnvoyResources.Endpoints[0].Value, endpoints)
+	if err != nil {
+		return err
+	}
+	return updateSnapshot(nodeID, snapshot)
+}
+
 // UpdateProxyModel updates Envoy's model with new info about this GWProxy.
 func UpdateProxyModel(ctx context.Context, cl client.Client, nodeID string, proxy *epicv1.GWProxy) error {
 	defer updateLock.Unlock()

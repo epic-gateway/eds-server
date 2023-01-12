@@ -48,8 +48,8 @@ func unmarshalYAMLCLA(str string, cla *endpoint.ClusterLoadAssignment) error {
 	return nil
 }
 
-// repsToCLAs translates our RemoteEndpoint CRs into Envoy Resources,
-// using the provided templateText.
+// repsToCLAs translates our LoadBalancer service CR into an Envoy
+// ClusterLoadAssignment, using a template in the LB Spec.
 func repsToCLAs(templateText string, reps []epicv1.RemoteEndpoint) ([]types.Resource, error) {
 	var (
 		err  error
@@ -107,8 +107,9 @@ func repsForCluster(reps []epicv1.RemoteEndpoint, cluster string) []epicv1.Remot
 	return clusterReps
 }
 
-// RepsToSnapshot translates a slice of epicv1.RemoteEndpoint into an
-// xDS cache.Snapshot. The Snapshot contains only the endpoints.
+// RepsToSnapshot translates one of our epicv1.LoadBalancers and its
+// reps into an xDS cache.Snapshot. The Snapshot contains only the
+// endpoints.
 func RepsToSnapshot(version int, template string, reps []epicv1.RemoteEndpoint) (cache.Snapshot, error) {
 	clas, err := repsToCLAs(template, reps)
 	if err != nil {
