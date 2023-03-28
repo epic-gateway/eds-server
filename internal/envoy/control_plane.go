@@ -12,7 +12,6 @@ import (
 	cache_v3 "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	server_v3 "github.com/envoyproxy/go-control-plane/pkg/server/v3"
 	"github.com/go-logr/logr"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -66,7 +65,7 @@ func UpdateProxyModel(ctx context.Context, cl client.Client, nodeID string, prox
 		return err
 	}
 
-	endpoints, err := activeProxyEndpoints(ctx, cl, proxy)
+	endpoints, err := proxy.ActiveProxyEndpoints(ctx, cl)
 	snapshot, err := RepsToSnapshot(version, proxy.Spec.EnvoyTemplate.EnvoyResources.Endpoints[0].Value, endpoints)
 	if err != nil {
 		return err
@@ -78,51 +77,6 @@ func UpdateProxyModel(ctx context.Context, cl client.Client, nodeID string, prox
 func updateSnapshot(nodeID string, snapshot cache_v3.Snapshot) error {
 	// add the snapshot to the cache
 	return snapshotCache.SetSnapshot(nodeID, snapshot)
-}
-
-// activeProxyEndpoints lists endpoints that belong to the proxy and
-// that are active, i.e., not in the process of being deleted.
-func activeProxyEndpoints(ctx context.Context, cl client.Client, proxy *epicv1.GWProxy) ([]epicv1.RemoteEndpoint, error) {
-	activeEPs := []epicv1.RemoteEndpoint{}
-	listOps := client.ListOptions{Namespace: proxy.Namespace}
-	routes := epicv1.GWRouteList{}
-	err := cl.List(ctx, &routes, &listOps)
-	if err != nil {
-		return activeEPs, err
-	}
-	slices := epicv1.GWEndpointSliceList{}
-	err = cl.List(ctx, &slices, &listOps)
-	if err != nil {
-		return activeEPs, err
-	}
-
-	for _, route := range routes.Items {
-		for _, rule := range route.Spec.HTTP.Rules {
-			for _, ref := range rule.BackendRefs {
-				clusterName := string(ref.Name)
-				for _, slice := range slices.Items {
-					if slice.Spec.ParentRef.UID == clusterName && slice.ObjectMeta.DeletionTimestamp.IsZero() {
-						for _, endpoint := range slice.Spec.Endpoints {
-							for _, address := range endpoint.Addresses {
-								activeEPs = append(activeEPs, epicv1.RemoteEndpoint{
-									Spec: epicv1.RemoteEndpointSpec{
-										Cluster: clusterName,
-										Address: address,
-										Port: v1.EndpointPort{
-											Port:     *slice.Spec.Ports[0].Port,
-											Protocol: *slice.Spec.Ports[0].Protocol,
-										},
-									},
-								})
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	return activeEPs, err
 }
 
 // ClearModel removes a model from the cache.

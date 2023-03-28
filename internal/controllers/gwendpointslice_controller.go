@@ -103,13 +103,11 @@ func referencingProxies(ctx context.Context, cl client.Client, namespace string,
 	}
 
 	for _, route := range routes.Items {
-		for _, rule := range route.Spec.HTTP.Rules {
-			for _, ref := range rule.BackendRefs {
-				backendName := string(ref.Name)
-				if backendName == cluster {
-					for _, parent := range route.Spec.HTTP.ParentRefs {
-						refs = append(refs, string(parent.Name))
-					}
+		for _, ref := range route.Backends() {
+			backendName := string(ref.Name)
+			if backendName == cluster {
+				for _, parent := range route.Parents() {
+					refs = append(refs, string(parent.Name))
 				}
 			}
 		}
