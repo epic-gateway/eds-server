@@ -17,7 +17,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	epicv1 "gitlab.com/acnodal/epic/resource-model/api/v1"
+	epicv1 "epic-gateway.org/resource-model/api/v1"
 	// +kubebuilder:scaffold:imports
 )
 
