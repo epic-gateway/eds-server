@@ -1,12 +1,11 @@
-module acnodal.io/epic/eds-server
+module epic-gateway.org/eds-server
 
 go 1.17
 
-replace github.com/3scale-ops/marin3r => gitlab.com/acnodal/epic/marin3r v0.9.1-epic7
-
-replace github.com/envoyproxy/go-control-plane => gitlab.com/acnodal/epic/go-control-plane v0.9.9-epic0
+replace github.com/3scale-ops/marin3r => epic-gateway.org/marin3r v0.9.1-epic7
 
 require (
+	epic-gateway.org/resource-model v0.55.3
 	github.com/3scale-ops/marin3r v0.9.1
 	github.com/envoyproxy/go-control-plane v0.9.9
 	github.com/ghodss/yaml v1.0.0
@@ -14,7 +13,6 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.18.1
-	gitlab.com/acnodal/epic/resource-model v0.49.0
 	google.golang.org/grpc v1.40.0
 	k8s.io/api v0.24.2
 	k8s.io/apimachinery v0.24.2
@@ -87,7 +85,7 @@ require (
 	k8s.io/component-base v0.24.2 // indirect
 	k8s.io/klog/v2 v2.60.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20220328201542-3ee0da9b0b42 // indirect
-	sigs.k8s.io/gateway-api v0.5.0-rc1 // indirect
+	sigs.k8s.io/gateway-api v0.5.1 // indirect
 	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect

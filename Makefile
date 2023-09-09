@@ -1,10 +1,8 @@
-PROJECT ?= eds-server
-REPO ?= registry.gitlab.com/acnodal/epic
-PREFIX ?= ${PROJECT}
-REGISTRY_IMAGE ?= ${REPO}/${PREFIX}
+REPO ?= quay.io/epic-gateway
+PREFIX ?= eds-server
 SUFFIX = ${USER}-dev
 
-TAG ?= ${REGISTRY_IMAGE}:${SUFFIX}
+TAG ?= ${REPO}/${PREFIX}:${SUFFIX}
 
 ##@ Default Goal
 .PHONY: help
@@ -13,6 +11,7 @@ help: ## Display this help
 	@echo "  make <goal> [VAR=value ...]"
 	@echo
 	@echo "Variables"
+	@echo "  REPO   The registry part of the Docker tag"
 	@echo "  PREFIX Docker tag prefix (useful to set the docker registry)"
 	@echo "  SUFFIX Docker tag suffix (the part after ':')"
 	@awk 'BEGIN {FS = ":.*##"}; \
@@ -21,19 +20,19 @@ help: ## Display this help
 
 ##@ Development Goals
 
-.PHONY: check
-check: ## Run some code quality checks
+.PHONY: test
+test: ## Run some code quality checks
 	go vet ./...
 	go test -race -short ./...
 
 run: ## Run the service using "go run" (KUBECONFIG needs to be set)
 	go run ./main.go --debug
 
-image:	## Build the Docker image
-	docker build --build-arg=GITLAB_USER --build-arg=GITLAB_PASSWORD --tag=${TAG} .
+image-build:	## Build the container image
+	docker build --tag=${TAG} .
 
-install:	image ## Push the image to the repo
+image-push:	image ## Push the image to the repo
 	docker push ${TAG}
 
-runimage: image ## Run the service using "docker run"
+image-run: image ## Run the service using "docker run"
 	docker run --rm --publish=18000:18000 ${TAG}

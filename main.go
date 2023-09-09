@@ -14,10 +14,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"acnodal.io/epic/eds-server/internal/controllers"
-	"acnodal.io/epic/eds-server/internal/envoy"
+	"epic-gateway.org/eds-server/internal/controllers"
+	"epic-gateway.org/eds-server/internal/envoy"
 
-	epicv1 "gitlab.com/acnodal/epic/resource-model/api/v1"
+	epicv1 "epic-gateway.org/resource-model/api/v1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -89,7 +89,7 @@ func main() {
 		MetricsBindAddress: metricsAddr,
 		Port:               9443,
 		LeaderElection:     enableLeaderElection,
-		LeaderElectionID:   "1cb3972f.acnodal.io",
+		LeaderElectionID:   "1cb3972f.epic-gateway.org",
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
